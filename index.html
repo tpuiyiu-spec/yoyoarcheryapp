@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>吉伊射箭 App (V11 教練總覽版)</title>
+
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    
+    <style>
+        /* --- 全局變數 --- */
+        :root {
+            --primary-pink: #ffcbdb; --primary-blue: #a2d2ff; --primary-yellow: #fffdf5;
+            --text-color: #5d4037; --stamp-red: #ff6b6b;
+            --target-yellow: #ffe552; --target-red: #ff5252; --target-blue: #448aff;
+            --target-black: #333333; --target-white: #ffffff;
+            --font-main: 'Helvetica Rounded', Arial, sans-serif;
+        }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body {
+            font-family: var(--font-main); background-color: var(--primary-yellow);
+            color: var(--text-color); margin: 0; padding: 0;
+            display: flex; justify-content: center; height: 100vh; overflow: hidden;
+        }
+        .app-container {
+            width: 100%; max-width: 800px; background: #fff; height: 100%;
+            display: flex; flex-direction: column; box-shadow: 0 0 20px rgba(0,0,0,0.1);
+            position: relative;
+        }
+        .hidden { display: none !important; }
+
+        /* --- UI 元件 --- */
+        .header {
+            background: var(--primary-pink); height: 55px; padding: 0 15px;
+            display: flex; align-items: center; justify-content: space-between;
+            flex-shrink: 0; z-index: 20; box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .header h1 { font-size: 1.1rem; margin: 0; color: white; text-shadow: 1px 1px 0 var(--text-color); }
+        .btn-header {
+            background: rgba(255,255,255,0.9); border: none; color: var(--text-color);
+            padding: 6px 12px; border-radius: 15px; font-weight: bold; cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        .scroll-content {
+            flex: 1; overflow-y: auto; padding: 15px; padding-bottom: 450px;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* --- 教練儀表板樣式 (新) --- */
+        .student-list {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 15px; margin-top: 20px;
+        }
+        .student-card {
+            background: white; border: 2px solid var(--primary-blue); border-radius: 15px;
+            padding: 20px; text-align: center; cursor: pointer; transition: transform 0.1s;
+            box-shadow: 0 4px 0 #dbeafe;
+        }
+        .student-card:active { transform: translateY(3px); box-shadow: none; }
+        .student-icon { font-size: 2rem; margin-bottom: 5px; display: block; }
+        .student-name { font-weight: bold; font-size: 1.1rem; color: var(--text-color); word-break: break-all;}
+
+        /* --- 其他樣式維持 V10 --- */
+        .top-toolbar { background: #f5f5f5; height: 55px; padding: 0 10px; display: flex; align-items: center; justify-content: center; gap: 10px; flex-shrink: 0; border-bottom: 1px solid #ddd; overflow-x: auto; }
+        .btn-tool { background: white; border: 1px solid #ccc; padding: 5px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: bold; cursor: pointer; white-space: nowrap; }
+        .round-selector { padding: 6px; border-radius: 15px; border: 2px solid var(--primary-blue); background: white; color: var(--text-color); font-weight: bold; font-size: 0.9rem; }
+        
+        .login-area { background: white; padding: 25px; border-radius: 20px; margin: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 2px solid #eee; }
+        .login-input { width: 100%; padding: 15px; font-size: 1.2rem; border: 2px solid var(--primary-blue); border-radius: 15px; text-align: center; margin-bottom: 15px; outline: none; }
+        
+        .loading-overlay { position: absolute; top:0; left:0; width:100%; height:100%; background: rgba(255,255,255,0.8); z-index: 999; display: flex; align-items: center; justify-content: center; flex-direction: column; font-weight: bold; color: var(--text-color); }
+        .spinner { border: 4px solid #f3f3f3; border-top: 4px solid var(--primary-pink); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin-bottom: 10px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-top: 10px; }
+        .cal-day { aspect-ratio: 0.9; background: white; border: 1px solid #eee; border-radius: 8px; display: flex; flex-direction: column; padding: 2px; position: relative; cursor: pointer; overflow: hidden; }
+        .cal-day.today { border: 2px solid var(--primary-blue); background: #f0f8ff; }
+        .cal-scores { font-size: 0.65rem; color: #666; display: flex; flex-direction: column; margin-top: 2px; }
+        .stamp-mark { position: absolute; font-size: 18px; bottom: 1px; right: 1px; opacity: 0.8; }
+
+        .pdf-area { background: white; padding: 10px; border-radius: 10px; border: 1px solid #eee; }
+        .score-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; background: white; border-radius: 8px; overflow: hidden; font-size: 0.9rem; }
+        .score-table th { background: var(--primary-blue); color: white; padding: 8px 2px; }
+        .score-table td { border: 1px solid #ddd; height: 42px; padding: 0; text-align: center; }
+        .score-cell { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; font-weight: bold; color: black; cursor: pointer; }
+        .score-cell.active { box-shadow: inset 0 0 0 3px var(--primary-pink); z-index: 5; }
+        .bg-yellow { background-color: var(--target-yellow); } .bg-red { background-color: var(--target-red); } .bg-blue { background-color: var(--target-blue); } .bg-black { background-color: var(--target-black); color: white !important; text-shadow: 0 0 2px black; } .bg-white { background-color: var(--target-white); }
+        .total-display { text-align: right; font-size: 1.2rem; font-weight: bold; background: var(--primary-pink); color: white; padding: 8px; border-radius: 8px; }
+        .signature-area { display: flex; justify-content: space-around; margin-top: 20px; border: 2px dashed #ddd; padding: 10px; border-radius: 10px; }
+        .sig-box { text-align: center; width: 45%; cursor: pointer; }
+        .sig-placeholder { height: 40px; border-bottom: 2px solid #ccc; margin-bottom: 5px; display: flex; align-items: flex-end; justify-content: center; color: #ccc; font-size: 0.8rem; }
+        .stamp-img { border: 3px double var(--stamp-red); color: var(--stamp-red); font-weight: bold; padding: 2px 8px; transform: rotate(-8deg); font-family: 'Courier New', monospace; font-size: 1rem; }
+        .comment-box { width: 100%; border: 1px solid #ddd; background: #fff; height: 60px; margin-top: 5px; font-size: 1rem; padding: 5px; border-radius: 5px; }
+
+        .keypad-container { position: fixed; bottom: 0; left: 0; right: 0; background: white; padding: 8px; box-shadow: 0 -4px 15px rgba(0,0,0,0.15); z-index: 100; display: flex; flex-direction: column; gap: 5px; max-width: 800px; margin: 0 auto; height: 260px; transition: transform 0.3s ease; }
+        .keypad-container.hidden-keypad { transform: translateY(110%); }
+        .key-row { display: flex; gap: 4px; height: 100%; max-height: 55px; }
+        .key-btn { flex: 1; border: none; border-radius: 6px; font-size: 1.2rem; font-weight: bold; cursor: pointer; box-shadow: 0 2px 0 rgba(0,0,0,0.2); }
+        .key-btn:active { transform: translateY(2px); box-shadow: none; }
+        .k-y { background: var(--target-yellow); } .k-r { background: var(--target-red); color: white; } .k-b { background: var(--target-blue); color: white; } .k-bk { background: var(--target-black); color: white; } .k-w { background: white; border: 1px solid #ccc; } .k-del { background: #ffcdd2; color: #d32f2f; flex: 1.5; } .k-nav { background: var(--primary-pink); color: white; font-size: 1rem; }
+
+        .mascot-area { text-align: center; margin-top: 30px; font-size: 80px; animation: bounce 2s infinite; }
+        @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+        .home-btn { display: block; width: 100%; padding: 15px; border-radius: 30px; border: 2px solid var(--text-color); font-size: 1.1rem; font-weight: bold; cursor: pointer; background: white; color: var(--text-color); box-shadow: 0 4px 0 #ddd; transition: 0.1s; }
+        .home-btn:active { transform: translateY(3px); box-shadow: none; }
+        .btn-pink { background: var(--primary-pink); color: white; border: none; }
+        .btn-blue { background: var(--primary-blue); color: white; border: none; }
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 200; display: flex; align-items: center; justify-content: center; }
+        .modal-box { background: white; padding: 25px; border-radius: 20px; text-align: center; width: 80%; max-width: 300px; }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    
+    <div id="loading" class="loading-overlay hidden">
+        <div class="spinner"></div>
+        <div id="loading-text">連線中...</div>
+    </div>
+
+    <div id="view-home">
+        <div class="header">
+            <h1>🏹 吉伊射箭訓練 (Cloud)</h1>
+        </div>
+        <div class="scroll-content" style="text-align: center; padding-top: 30px;">
+            <div class="mascot-area">🐻 🎯 🐰</div>
+            <h2 style="margin-bottom: 5px;">歡迎回來！</h2>
+            <p style="color:#888; margin-top:0;">資料將自動同步至雲端</p>
+            
+            <div class="login-area">
+                <input type="text" id="archer-name-input" class="login-input" placeholder="請輸入名字 (例: 小八)">
+                <button class="home-btn btn-pink" onclick="loginArcher()">我是射手 (登入)</button>
+                <div style="height:15px;"></div>
+                <button class="home-btn btn-blue" onclick="openLogin()">我是教練 (管理)</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="view-coach-dashboard" class="hidden">
+        <div class="header">
+            <button class="btn-header" onclick="navTo('view-home')">⌂ 登出</button>
+            <h1>學生名單</h1>
+            <button class="btn-header" onclick="loadAllArchers()">🔄</button>
+        </div>
+        <div class="scroll-content">
+            <p style="text-align:center; color:#666; font-size:0.9rem;">
+                點擊學生名字以查看訓練紀錄
+            </p>
+            <div id="student-list-container" class="student-list">
+                </div>
+        </div>
+    </div>
+
+    <div id="view-calendar" class="hidden">
+        <div class="header">
+            <button class="btn-header" onclick="handleCalendarBack()">⬅ 返回</button>
+            <h1 id="calendar-title">行事曆</h1>
+            <div style="width: 60px;"></div>
+        </div>
+        <div class="scroll-content">
+            <div style="text-align:center; margin-bottom:10px;">
+                <span style="background:#eee; padding:5px 15px; border-radius:15px; font-size:0.9rem; color:#555;">
+                    當前查看：<strong id="current-archer-display">---</strong>
+                </span>
+            </div>
+            
+            <div style="display:flex; justify-content:space-between; align-items:center; padding: 0 10px;">
+                <button onclick="changeMonth(-1)" style="border:none; background:transparent; font-size:1.5rem;">◀</button>
+                <h2 id="month-display" style="margin:0;"></h2>
+                <button onclick="changeMonth(1)" style="border:none; background:transparent; font-size:1.5rem;">▶</button>
+            </div>
+            <div class="calendar-grid" id="calendar-grid"></div>
+        </div>
+    </div>
+
+    <div id="view-score" class="hidden">
+        <div class="header">
+            <button class="btn-header" onclick="navTo('view-calendar')">⬅ 月曆</button>
+            <h1 id="score-header-title">計分板</h1>
+            <button class="btn-header" style="color:var(--stamp-red);" onclick="saveCurrentRound()">💾 儲存</button>
+        </div>
+
+        <div class="top-toolbar">
+            <select id="round-selector" class="round-selector" onchange="switchRound()"></select>
+            <button class="btn-tool" onclick="exportPDF()">📄 PDF</button>
+            <button class="btn-tool" style="border-color:var(--primary-blue);" onclick="toggleKeypad()">⌨️ 鍵盤</button>
+        </div>
+        
+        <div class="scroll-content">
+            <div id="pdf-export-area" class="pdf-area">
+                <div class="controls-info">
+                    <span id="date-label" style="font-weight:bold;"></span>
+                    <span id="pdf-archer-name" style="color:#555;"></span>
+                </div>
+                <div class="controls-info" style="margin-top:5px; border-bottom: 2px dashed #eee; padding-bottom:5px;">
+                     <span id="round-label-display" style="color:var(--stamp-red); font-weight:bold;">Round 1</span>
+                     <select id="mode-select" onchange="initScoreTable()" style="padding:2px; border-radius:5px;">
+                        <option value="outdoor">室外 (36箭)</option>
+                        <option value="indoor">室內 (30箭)</option>
+                    </select>
+                </div>
+
+                <table class="score-table">
+                    <thead><tr id="table-head-row"></tr></thead>
+                    <tbody id="table-body"></tbody>
+                </table>
+
+                <div class="total-display">
+                    總分：<span id="grand-total">0</span>
+                </div>
+
+                <div class="signature-area">
+                    <div class="sig-box" onclick="handleSign('archer')">
+                        <div id="sig-archer" class="sig-placeholder">點擊簽到</div>
+                        <small>射手</small>
+                    </div>
+                    <div class="sig-box" onclick="handleSign('coach')">
+                        <div id="sig-coach" class="sig-placeholder">點擊簽署</div>
+                        <small>教練</small>
+                    </div>
+                </div>
+                
+                <div class="comment-section">
+                    <label style="font-weight:bold;">📋 教練評語：</label>
+                    <textarea id="coach-comment" class="comment-box" placeholder="請輸入評語..."></textarea>
+                </div>
+                
+                <div style="text-align:center; margin-top:10px; color:#ccc; font-size:0.7rem;">
+                    Generated by Chiikawa Archery
+                </div>
+            </div>
+        </div>
+
+        <div class="keypad-container" id="keypad">
+            <div class="key-row">
+                <button class="key-btn k-y" onclick="inputScore('X')">X</button> <button class="key-btn k-y" onclick="inputScore(10)">10</button> <button class="key-btn k-y" onclick="inputScore(9)">9</button>
+            </div>
+            <div class="key-row">
+                <button class="key-btn k-r" onclick="inputScore(8)">8</button> <button class="key-btn k-r" onclick="inputScore(7)">7</button> <button class="key-btn k-b" onclick="inputScore(6)">6</button> <button class="key-btn k-b" onclick="inputScore(5)">5</button>
+            </div>
+            <div class="key-row">
+                <button class="key-btn k-bk" onclick="inputScore(4)">4</button> <button class="key-btn k-bk" onclick="inputScore(3)">3</button> <button class="key-btn k-w" onclick="inputScore(2)">2</button> <button class="key-btn k-w" onclick="inputScore(1)">1</button>
+            </div>
+            <div class="key-row">
+                <button class="key-btn k-w" onclick="inputScore('M')">M</button> <button class="key-btn k-del" onclick="deleteScore()">⬅</button> <button class="key-btn k-nav" onclick="moveFocus(1)">下一格</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="login-modal" class="hidden modal-overlay">
+        <div class="modal-box">
+            <h3>🔐 教練登入</h3>
+            <p style="font-size:0.8rem; color:#666;">密碼: 1234</p>
+            <input type="password" id="coach-pwd" class="login-input" style="margin:10px 0;">
+            <button class="home-btn btn-blue" style="margin:10px auto; padding:10px;" onclick="checkLogin()">登入</button>
+            <button style="background:none; border:none; color:#888;" onclick="closeLogin()">取消</button>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    // --- 1. FIREBASE CONFIG ---
+    const firebaseConfig = {
+        apiKey: "AIzaSyBfy1pe_3WIigOpZXXI3kASKqhxEsHWGO8",
+        authDomain: "yoyo-archery-app.firebaseapp.com",
+        projectId: "yoyo-archery-app",
+        storageBucket: "yoyo-archery-app.firebasestorage.app",
+        messagingSenderId: "540788690338",
+        appId: "1:540788690338:web:6bed490f095102a8baf6fb",
+        measurementId: "G-99R8BXR4L2"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    // --- 2. 雲端核心邏輯 ---
+    let currentRole = 'archer';
+    let currentArcherName = ''; 
+    let selectedDate = new Date().toISOString().split('T')[0];
+    let displayMonth = new Date();
+    
+    let currentRoundData = {}; 
+    let currentRoundIdx = 0;
+    let localCacheData = {}; 
+
+    function showLoading(show, text="連線中...") {
+        const el = document.getElementById('loading');
+        document.getElementById('loading-text').innerText = text;
+        if(show) el.classList.remove('hidden'); else el.classList.add('hidden');
+    }
+
+    function loadCloudData(archerName, callback) {
+        showLoading(true, `讀取 ${archerName} 的資料...`);
+        db.collection("records").doc(archerName).get().then((doc) => {
+            if (doc.exists) {
+                const data = doc.data();
+                localCacheData = data.appData ? JSON.parse(data.appData) : {};
+            } else {
+                localCacheData = {};
+            }
+            showLoading(false);
+            if(callback) callback();
+        }).catch((error) => {
+            showLoading(false);
+            console.error("讀取失敗:", error);
+            alert("⚠️ 讀取失敗");
+        });
+    }
+
+    function saveToCloud(callback) {
+        if(!currentArcherName) return;
+        showLoading(true, "正在儲存...");
+        db.collection("records").doc(currentArcherName).set({
+            appData: JSON.stringify(localCacheData),
+            lastUpdate: firebase.firestore.FieldValue.serverTimestamp()
+        }).then(() => {
+            showLoading(false);
+            if(callback) callback();
+        }).catch((error) => {
+            showLoading(false);
+            alert("儲存失敗，請檢查網路");
+        });
+    }
+
+    // --- 3. 教練儀表板邏輯 (V11 新增) ---
+    function loadAllArchers() {
+        showLoading(true, "正在獲取學生名單...");
+        // 抓取 records 集合中的所有文件
+        db.collection("records").get().then((querySnapshot) => {
+            const listContainer = document.getElementById('student-list-container');
+            listContainer.innerHTML = "";
+            
+            if (querySnapshot.empty) {
+                listContainer.innerHTML = "<p style='grid-column:1/-1; text-align:center;'>暫無學生紀錄</p>";
+            } else {
+                querySnapshot.forEach((doc) => {
+                    const studentName = doc.id; // 文件ID即為名字
+                    
+                    // 建立卡片
+                    const card = document.createElement('div');
+                    card.className = 'student-card';
+                    card.innerHTML = `
+                        <span class="student-icon">🐻</span>
+                        <div class="student-name">${studentName}</div>
+                    `;
+                    card.onclick = () => selectStudentForCoach(studentName);
+                    listContainer.appendChild(card);
+                });
+            }
+            showLoading(false);
+        }).catch((error) => {
+            showLoading(false);
+            alert("無法獲取名單: " + error.message);
+        });
+    }
+
+    function selectStudentForCoach(name) {
+        currentArcherName = name;
+        updateUIForArcher(name);
+        loadCloudData(name, () => {
+            navTo('view-calendar', 'coach');
+        });
+    }
+
+    // --- 4. 導航與登入 ---
+    function loginArcher() {
+        const name = document.getElementById('archer-name-input').value.trim();
+        if(!name) { alert("請輸入名字"); return; }
+        currentArcherName = name;
+        updateUIForArcher(name);
+        loadCloudData(name, () => {
+            navTo('view-calendar', 'archer');
+        });
+    }
+
+    function updateUIForArcher(name) {
+        document.getElementById('current-archer-display').innerText = name;
+        document.getElementById('pdf-archer-name').innerText = "射手: " + name;
+    }
+
+    function handleCalendarBack() {
+        if(currentRole === 'coach') {
+            navTo('view-coach-dashboard'); // 教練回儀表板
+        } else {
+            navTo('view-home'); // 射手回首頁登出
+        }
+    }
+
+    function navTo(viewId, role) {
+        if(role) currentRole = role;
+        ['view-home', 'view-coach-dashboard', 'view-calendar', 'view-score'].forEach(id => document.getElementById(id).classList.add('hidden'));
+        document.getElementById(viewId).classList.remove('hidden');
+        
+        if(viewId === 'view-calendar') renderCalendar();
+        if(viewId === 'view-score') document.getElementById('keypad').classList.remove('hidden-keypad');
+
+        // Header 顏色
+        const color = currentRole === 'coach' ? 'var(--primary-blue)' : 'var(--primary-pink)';
+        document.querySelectorAll('.header').forEach(h => h.style.background = color);
+    }
+
+    // 教練登入相關
+    function openLogin() { 
+        document.getElementById('login-modal').classList.remove('hidden'); 
+    }
+    function closeLogin() { document.getElementById('login-modal').classList.add('hidden'); }
+    function checkLogin() {
+        if(document.getElementById('coach-pwd').value === '1234') { 
+            closeLogin(); 
+            // 登入成功，直接進入儀表板，並載入名單
+            navTo('view-coach-dashboard', 'coach');
+            loadAllArchers();
+        } else { alert('密碼錯誤'); }
+    }
+
+    // --- 5. 月曆、計分與其他邏輯 (維持 V10) ---
+    function renderCalendar() {
+        const grid = document.getElementById('calendar-grid');
+        grid.innerHTML = "";
+        const y = displayMonth.getFullYear();
+        const m = displayMonth.getMonth();
+        document.getElementById('month-display').innerText = `${y}年 ${m+1}月`;
+        
+        const days = new Date(y, m+1, 0).getDate();
+        const firstDay = new Date(y, m, 1).getDay();
+        const dbData = localCacheData; 
+
+        for(let i=0; i<firstDay; i++) grid.appendChild(document.createElement('div'));
+        for(let d=1; d<=days; d++) {
+            const dateStr = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+            const el = document.createElement('div');
+            el.className = 'cal-day';
+            const num = document.createElement('div'); num.className='cal-num'; num.innerText=d; el.appendChild(num);
+
+            if(dateStr === new Date().toISOString().split('T')[0]) el.classList.add('today');
+            
+            const dayData = dbData[dateStr];
+            if(dayData && dayData.rounds && dayData.rounds.length > 0) {
+                const scoreList = document.createElement('div');
+                scoreList.className = 'cal-scores';
+                dayData.rounds.forEach((r, idx) => {
+                    if(idx < 3) {
+                        const row = document.createElement('div'); row.innerText = `R${idx+1}: ${r.total}`; scoreList.appendChild(row);
+                    }
+                });
+                if(dayData.rounds.length > 3) { const more=document.createElement('div'); more.innerText="..."; scoreList.appendChild(more); }
+                el.appendChild(scoreList); el.style.background = '#fffbe6';
+                if(dayData.rounds.some(r => r.coachSigned)) {
+                    const s = document.createElement('div'); s.className = 'stamp-mark'; s.innerText = '💮'; el.appendChild(s);
+                }
+            }
+            el.onclick = () => openScorePage(dateStr);
+            grid.appendChild(el);
+        }
+    }
+    function changeMonth(d) { displayMonth.setMonth(displayMonth.getMonth() + d); renderCalendar(); }
+
+    function openScorePage(dateStr) {
+        selectedDate = dateStr;
+        navTo('view-score');
+        document.getElementById('date-label').innerText = dateStr;
+        
+        let dayData = localCacheData[dateStr];
+        if (!dayData || !dayData.rounds) { dayData = { rounds: [] }; }
+        if (dayData.rounds.length === 0) { createEmptyRound(dayData); }
+
+        currentRoundIdx = dayData.rounds.length - 1;
+        localCacheData[dateStr] = dayData;
+        renderRoundSelector(dayData);
+        loadRoundData(dayData.rounds[currentRoundIdx]);
+        document.getElementById('coach-comment').readOnly = (currentRole === 'archer');
+    }
+
+    function createEmptyRound(dayData) {
+        dayData.rounds.push({ mode: 'outdoor', scores: null, total: 0, comment: '', archerSigned: false, coachSigned: false });
+        return dayData.rounds.length - 1;
+    }
+    function renderRoundSelector(dayData) {
+        const sel = document.getElementById('round-selector'); sel.innerHTML = "";
+        dayData.rounds.forEach((r, idx) => {
+            const opt = document.createElement('option'); opt.value = idx; opt.text = `R${idx + 1} (${r.total})`; sel.appendChild(opt);
+        });
+        const add = document.createElement('option'); add.value = "new"; add.text = "➕ 新增"; sel.appendChild(add);
+        sel.value = currentRoundIdx;
+    }
+    function switchRound() {
+        const val = document.getElementById('round-selector').value;
+        updateCurrentRoundData(); // 存當前
+        let dayData = localCacheData[selectedDate];
+        if (val === "new") {
+            if(confirm("開始新的一輪？")) {
+                currentRoundIdx = createEmptyRound(dayData);
+                renderRoundSelector(dayData);
+                loadRoundData(dayData.rounds[currentRoundIdx]);
+            } else { document.getElementById('round-selector').value = currentRoundIdx; }
+        } else {
+            currentRoundIdx = parseInt(val);
+            loadRoundData(dayData.rounds[currentRoundIdx]);
+        }
+    }
+    function loadRoundData(r) {
+        currentRoundData = r;
+        document.getElementById('mode-select').value = r.mode || 'outdoor';
+        document.getElementById('coach-comment').value = r.comment || '';
+        document.getElementById('round-label-display').innerText = `Round ${currentRoundIdx + 1}`;
+        initScoreTable(false);
+        updateSigUI('archer', r.archerSigned); updateSigUI('coach', r.coachSigned);
+    }
+    function updateCurrentRoundData() {
+        currentRoundData.mode = document.getElementById('mode-select').value;
+        currentRoundData.scores = scores;
+        currentRoundData.total = document.getElementById('grand-total').innerText;
+        currentRoundData.comment = document.getElementById('coach-comment').value;
+        currentRoundData.archerSigned = document.getElementById('sig-archer').innerHTML.includes('stamp-img');
+        currentRoundData.coachSigned = document.getElementById('sig-coach').innerHTML.includes('stamp-img');
+    }
+    function saveCurrentRound() {
+        updateCurrentRoundData();
+        if(!localCacheData[selectedDate]) localCacheData[selectedDate] = { rounds: [] };
+        localCacheData[selectedDate].rounds[currentRoundIdx] = currentRoundData;
+        renderRoundSelector(localCacheData[selectedDate]);
+        saveToCloud(() => { alert('✅ 雲端同步成功！'); });
+    }
+
+    // 表格與鍵盤 (簡化顯示)
+    let scores = []; let currentFocus = { r: 0, c: 0 };
+    function initScoreTable(reset) {
+        const mode = document.getElementById('mode-select').value;
+        const rows = (mode==='outdoor')?6:10; const arrows = (mode==='outdoor')?6:3;
+        if(reset || !currentRoundData.scores) scores = Array(rows).fill().map(()=>Array(arrows).fill(null));
+        else scores = currentRoundData.scores;
+        
+        const thead = document.getElementById('table-head-row');
+        let h = '<th width="12%">趟</th>'; for(let i=1;i<=arrows;i++) h+=`<th>${i}</th>`; h+='<th width="15%">小計</th>'; thead.innerHTML=h;
+        const tbody = document.getElementById('table-body'); tbody.innerHTML="";
+        for(let r=0;r<rows;r++) {
+            const tr=document.createElement('tr'); tr.innerHTML=`<td style="background:#f0f8ff;font-weight:bold;">${r+1}</td>`;
+            for(let c=0;c<arrows;c++) tr.innerHTML+=`<td><div id="cell-${r}-${c}" class="score-cell" onclick="setFocus(${r},${c})"></div></td>`;
+            tr.innerHTML+=`<td id="sub-${r}" style="font-weight:bold;color:#555;">0</td>`; tbody.appendChild(tr);
+        }
+        refreshTableUI(); setFocus(0,0);
+    }
+    function refreshTableUI() {
+        scores.forEach((row,r)=>{ let sub=0; row.forEach((v,c)=>{
+            const cell=document.getElementById(`cell-${r}-${c}`); if(cell){cell.innerText=v===null?'':v;applyColor(cell,v);}
+            if(v==='X')sub+=10; else if(v!=='M'&&v!==null)sub+=parseInt(v);
+        }); document.getElementById(`sub-${r}`).innerText=sub; });
+        updateTotal();
+    }
+    function applyColor(el,v) { el.className="score-cell active"; if(v==='X'||v==10||v==9)el.classList.add('bg-yellow'); else if(v==8||v==7)el.classList.add('bg-red'); else if(v==6||v==5)el.classList.add('bg-blue'); else if(v==4||v==3)el.classList.add('bg-black'); else el.classList.add('bg-white'); }
+    function updateTotal(){ let t=0; scores.forEach(row=>{row.forEach(v=>{if(v==='X')t+=10;else if(v!=='M'&&v!==null)t+=parseInt(v);});}); document.getElementById('grand-total').innerText=t; }
+    
+    function toggleKeypad() { document.getElementById('keypad').classList.toggle('hidden-keypad'); }
+    document.getElementById('coach-comment').addEventListener('focus', () => { document.getElementById('keypad').classList.add('hidden-keypad'); });
+    function setFocus(r,c){ const old=document.querySelector('.score-cell.active'); if(old)old.classList.remove('active'); currentFocus={r,c}; document.getElementById(`cell-${r}-${c}`).classList.add('active'); document.getElementById('keypad').classList.remove('hidden-keypad'); }
+    function moveFocus(step){ const rows=scores.length; const cols=scores[0].length; let {r,c}=currentFocus; c+=step; if(c>=cols){c=0;r++;} if(c<0){c=cols-1;r--;} if(r>=0&&r<rows)setFocus(r,c); }
+    function inputScore(v){ if(scores[currentFocus.r]){scores[currentFocus.r][currentFocus.c]=v; refreshTableUI(); moveFocus(1);} }
+    function deleteScore(){ scores[currentFocus.r][currentFocus.c]=null; refreshTableUI(); }
+    
+    function handleSign(role){ if(currentRole!==role){alert(`請以 ${role==='coach'?'教練':'射手'} 身分登入`);return;} const div=document.getElementById(`sig-${role}`); updateSigUI(role,!div.innerHTML.includes('stamp-img')); }
+    function updateSigUI(role,signed){ const div=document.getElementById(`sig-${role}`); if(signed){div.innerHTML=`<div class="stamp-img">${role==='archer'?'已簽':'認證'}</div>`; div.style.borderBottom="none";} else{div.innerHTML=role==='archer'?'點擊簽到':'點擊簽署'; div.style.borderBottom="2px solid #ccc";} }
+    
+    function exportPDF(){ document.getElementById('keypad').classList.add('hidden-keypad'); const el=document.getElementById('pdf-export-area'); const opt={margin:0.2, filename:`射箭_${selectedDate}_${currentArcherName}_R${currentRoundIdx+1}.pdf`, image:{type:'jpeg',quality:0.98}, html2canvas:{scale:2}, jsPDF:{unit:'in',format:'a4',orientation:'portrait'}}; html2pdf().set(opt).from(el).save(); }
+
+</script>
+</body>
+</html>
