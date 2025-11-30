@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Yoyo 教練的射箭訓練 (V23 統計版)</title>
+    <title>Yoyo 教練的射箭訓練 (V25 弓種版)</title>
 
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
@@ -57,7 +57,13 @@
             -webkit-overflow-scrolling: touch; scroll-behavior: smooth;
         }
 
-        /* --- 統計與總分區域 (V23 新增) --- */
+        /* --- 自動儲存狀態 --- */
+        .save-status {
+            font-size: 0.75rem; color: #666; margin-left: auto; margin-right: 10px;
+            white-space: nowrap; font-weight: bold;
+        }
+
+        /* --- 統計與總分區域 --- */
         .summary-row {
             display: flex; justify-content: flex-end; align-items: center; gap: 10px;
             margin-top: 10px; margin-bottom: 10px;
@@ -65,8 +71,7 @@
         .stats-box {
             background: #e3f2fd; color: #1565c0; padding: 10px 15px;
             border-radius: 10px; font-weight: bold; font-size: 1rem;
-            box-shadow: 0 2px 0 rgba(0,0,0,0.05);
-            border: 1px solid #bbdefb;
+            box-shadow: 0 2px 0 rgba(0,0,0,0.05); border: 1px solid #bbdefb;
         }
         .total-display { 
             text-align: right; font-size: 1.3rem; font-weight: bold; 
@@ -89,10 +94,7 @@
         .h-stats { display: flex; gap: 10px; margin-top: 5px; flex-wrap: wrap;}
         .stat-badge { background: #f0f0f0; padding: 3px 8px; border-radius: 5px; font-size: 0.85rem; color: #555; }
         .stat-avg { background: var(--primary-pink); color: white; font-weight: bold; }
-        .h-comment {
-            margin-top: 10px; padding: 8px; background: #f8f9fa;
-            border-radius: 8px; font-size: 0.9rem; color: #444; border-left: 3px solid #ccc;
-        }
+        .h-comment { margin-top: 10px; padding: 8px; background: #f8f9fa; border-radius: 8px; font-size: 0.9rem; color: #444; border-left: 3px solid #ccc; }
         .btn-delete-record {
             background: #ffebee; color: #c62828; border: 1px solid #ffcdd2;
             width: 35px; height: 35px; border-radius: 50%; font-size: 1rem; 
@@ -114,9 +116,9 @@
         .emoji-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; padding: 10px; max-height: 300px; overflow-y: auto; }
         .emoji-btn { font-size: 2rem; background: #f9f9f9; border: 1px solid #eee; border-radius: 10px; cursor: pointer; padding: 5px; }
         
-        .top-toolbar { background: #f5f5f5; height: 55px; padding: 0 10px; display: flex; align-items: center; justify-content: center; gap: 10px; flex-shrink: 0; border-bottom: 1px solid #ddd; overflow-x: auto; }
-        .btn-tool { background: white; border: 1px solid #ccc; padding: 5px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: bold; cursor: pointer; white-space: nowrap; }
-        .round-selector { padding: 6px; border-radius: 15px; border: 2px solid var(--primary-blue); background: white; color: var(--text-color); font-weight: bold; font-size: 0.9rem; }
+        .top-toolbar { background: #f5f5f5; height: 55px; padding: 0 10px; display: flex; align-items: center; justify-content: flex-start; gap: 10px; flex-shrink: 0; border-bottom: 1px solid #ddd; overflow-x: auto; }
+        .btn-tool { background: white; border: 1px solid #ccc; padding: 5px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: bold; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
+        .round-selector { padding: 6px; border-radius: 15px; border: 2px solid var(--primary-blue); background: white; color: var(--text-color); font-weight: bold; font-size: 0.9rem; flex-shrink: 0;}
         
         .login-area { background: white; padding: 25px; border-radius: 20px; margin: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 2px solid #eee; }
         .login-input { width: 100%; padding: 15px; font-size: 1.2rem; border: 2px solid var(--primary-blue); border-radius: 15px; text-align: center; margin-bottom: 15px; outline: none; }
@@ -259,6 +261,8 @@
 
         <div class="top-toolbar">
             <select id="round-selector" class="round-selector" onchange="switchRound()"></select>
+            <span id="save-status" class="save-status"></span>
+            
             <button class="btn-tool" onclick="exportPDF()">📄 PDF</button>
             <button class="btn-tool" style="border-color:var(--primary-blue);" onclick="toggleKeypad()">⌨️ 鍵盤</button>
         </div>
@@ -270,11 +274,17 @@
                     <span id="pdf-archer-name" style="color:#555;"></span>
                 </div>
                 <div class="controls-info" style="margin-top:5px; border-bottom: 2px dashed #eee; padding-bottom:5px;">
+                     <div style="display:flex; gap:5px; align-items:center;">
+                         <select id="bow-selector" onchange="triggerAutoSave()" style="padding:4px; border-radius:5px; border:1px solid #ccc; font-size:0.9rem;">
+                            <option value="recurve">反曲弓</option>
+                            <option value="compound">複合弓</option>
+                         </select>
+                         <select id="mode-select" onchange="initScoreTable()" style="padding:4px; border-radius:5px; border:1px solid #ccc; font-size:0.9rem;">
+                            <option value="outdoor">室外 (36箭)</option>
+                            <option value="indoor">室內 (30箭)</option>
+                        </select>
+                     </div>
                      <span id="round-label-display" style="color:var(--stamp-red); font-weight:bold;">Round 1</span>
-                     <select id="mode-select" onchange="initScoreTable()" style="padding:2px; border-radius:5px;">
-                        <option value="outdoor">室外 (36箭)</option>
-                        <option value="indoor">室內 (30箭)</option>
-                    </select>
                 </div>
 
                 <table class="score-table">
@@ -372,6 +382,7 @@
     let currentRoundIdx = 0;
     let localCacheData = {}; 
     let lastView = 'view-home'; 
+    let autoSaveTimer = null; 
 
     function showLoading(show, text="連線中...") {
         const el = document.getElementById('loading');
@@ -393,18 +404,35 @@
         });
     }
 
-    function saveToCloud(callback) {
+    function saveToCloud(callback, isSilent = false) {
         if(!currentArcherName) return;
-        showLoading(true, "正在儲存...");
+        
+        if (!isSilent) showLoading(true, "正在儲存...");
+        else document.getElementById('save-status').innerText = "⏳ 同步中...";
+
         db.collection("records").doc(currentArcherName).set({
             avatar: currentArcherAvatar, 
             appData: JSON.stringify(localCacheData),
             lastUpdate: firebase.firestore.FieldValue.serverTimestamp()
         }).then(() => {
-            showLoading(false); if(callback) callback();
+            if (!isSilent) showLoading(false);
+            if (isSilent) {
+                const time = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                document.getElementById('save-status').innerText = "✅ 已儲存 " + time;
+            }
+            if(callback) callback();
         }).catch((error) => {
-            showLoading(false); alert("儲存失敗");
+            if (!isSilent) { showLoading(false); alert("儲存失敗"); }
+            else document.getElementById('save-status').innerText = "❌ 同步失敗";
         });
+    }
+
+    function triggerAutoSave() {
+        document.getElementById('save-status').innerText = "📝 紀錄中...";
+        clearTimeout(autoSaveTimer);
+        autoSaveTimer = setTimeout(() => {
+            saveCurrentRound(true); 
+        }, 1000);
     }
 
     // --- 3. 頭像邏輯 ---
@@ -476,6 +504,9 @@
             const avg = arrowCount > 0 ? (total / arrowCount).toFixed(1) : "0.0";
             const modeText = r.mode === 'indoor' ? '室內' : '室外';
             
+            // V25: 顯示弓種
+            const bowText = r.bowType === 'compound' ? '複合弓' : '反曲弓';
+            
             let commentHtml = '';
             if(r.comment && r.comment.trim() !== "") {
                 commentHtml = `<div class="h-comment">💬 教練：${r.comment}</div>`;
@@ -485,7 +516,7 @@
             div.innerHTML = `
                 <div class="history-header" onclick="selectHistoryItem('${item.date}', ${item.roundIdx})">
                     <div class="history-info">
-                        <div class="h-date">${item.date} • Round ${item.roundIdx + 1}</div>
+                        <div class="h-date">${item.date} • Round ${item.roundIdx + 1} (${bowText})</div>
                         <div class="h-title">${modeText}賽 (${arrowCount}箭)</div>
                         <div class="h-stats"><span class="stat-badge">總分: ${total}</span><span class="stat-badge stat-avg">均分: ${avg}</span>${r.coachSigned ? '<span class="stat-badge" style="color:var(--stamp-red)">💮已簽</span>' : ''}</div>
                     </div>
@@ -604,6 +635,7 @@
         selectedDate = dateStr;
         navTo('view-score');
         document.getElementById('date-label').innerText = dateStr;
+        document.getElementById('save-status').innerText = ""; 
         
         let dayData = localCacheData[dateStr];
         if (!dayData || !dayData.rounds) { dayData = { rounds: [] }; }
@@ -617,7 +649,9 @@
         document.getElementById('coach-comment').readOnly = (currentRole === 'archer');
     }
 
-    function createEmptyRound(dayData) { dayData.rounds.push({ mode: 'outdoor', scores: null, total: 0, comment: '', archerSigned: false, coachSigned: false }); return dayData.rounds.length - 1; }
+    // V25: 預設弓種
+    function createEmptyRound(dayData) { dayData.rounds.push({ mode: 'outdoor', bowType: 'recurve', scores: null, total: 0, comment: '', archerSigned: false, coachSigned: false }); return dayData.rounds.length - 1; }
+    
     function renderRoundSelector(dayData) {
         const sel = document.getElementById('round-selector'); sel.innerHTML = "";
         dayData.rounds.forEach((r, idx) => { const opt = document.createElement('option'); opt.value = idx; opt.text = `R${idx + 1} (${r.total})`; sel.appendChild(opt); });
@@ -625,36 +659,51 @@
         sel.value = currentRoundIdx;
     }
     function switchRound() {
-        const val = document.getElementById('round-selector').value; updateCurrentRoundData();
+        const val = document.getElementById('round-selector').value; 
+        saveCurrentRound(true); 
+        
         let dayData = localCacheData[selectedDate];
         if (val === "new") {
-            if(confirm("開始新的一輪？")) { currentRoundIdx = createEmptyRound(dayData); renderRoundSelector(dayData); loadRoundData(dayData.rounds[currentRoundIdx]); } else { document.getElementById('round-selector').value = currentRoundIdx; }
+            if(confirm("開始新的一輪？")) { 
+                currentRoundIdx = createEmptyRound(dayData); 
+                renderRoundSelector(dayData); 
+                loadRoundData(dayData.rounds[currentRoundIdx]); 
+            } else { document.getElementById('round-selector').value = currentRoundIdx; }
         } else { currentRoundIdx = parseInt(val); loadRoundData(dayData.rounds[currentRoundIdx]); }
     }
+    
+    // V25: 載入時設定弓種選單
     function loadRoundData(r) {
         currentRoundData = r;
         document.getElementById('mode-select').value = r.mode || 'outdoor';
+        document.getElementById('bow-selector').value = r.bowType || 'recurve'; // Load Bow Type
         document.getElementById('coach-comment').value = r.comment || '';
         document.getElementById('round-label-display').innerText = `Round ${currentRoundIdx + 1}`;
-        // V18 照片載入
         const preview = document.getElementById('photo-preview');
         const container = document.getElementById('photo-preview-container');
         if(r.targetPhoto) { preview.src = r.targetPhoto; container.style.display = 'block'; }
         else { preview.src = ""; container.style.display = 'none'; }
         initScoreTable(false); updateSigUI('archer', r.archerSigned); updateSigUI('coach', r.coachSigned);
     }
+    
+    // V25: 更新時儲存弓種
     function updateCurrentRoundData() {
-        currentRoundData.mode = document.getElementById('mode-select').value; currentRoundData.scores = scores; currentRoundData.total = document.getElementById('grand-total').innerText;
+        currentRoundData.mode = document.getElementById('mode-select').value; 
+        currentRoundData.bowType = document.getElementById('bow-selector').value; // Save Bow Type
+        currentRoundData.scores = scores; currentRoundData.total = document.getElementById('grand-total').innerText;
         currentRoundData.comment = document.getElementById('coach-comment').value; currentRoundData.archerSigned = document.getElementById('sig-archer').innerHTML.includes('stamp-img');
         currentRoundData.coachSigned = document.getElementById('sig-coach').innerHTML.includes('stamp-img');
-        // 照片已在 handlePhotoUpload 即時更新到 currentRoundData
     }
-    function saveCurrentRound() {
+    
+    function saveCurrentRound(isSilent = false) {
         updateCurrentRoundData();
         if(!localCacheData[selectedDate]) localCacheData[selectedDate] = { rounds: [] };
         localCacheData[selectedDate].rounds[currentRoundIdx] = currentRoundData;
         renderRoundSelector(localCacheData[selectedDate]);
-        saveToCloud(() => { alert('✅ 雲端同步成功！'); });
+        
+        saveToCloud(() => { 
+            if(!isSilent) alert('✅ 雲端同步成功！'); 
+        }, isSilent);
     }
 
     function handlePhotoUpload(event) {
@@ -669,15 +718,16 @@
                 if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
                 canvas.width = width; canvas.height = height;
                 ctx.drawImage(img, 0, 0, width, height);
-                const dataUrl = canvas.toDataURL('image/jpeg', 0.6); // 0.6 品質
-                currentRoundData.targetPhoto = dataUrl; // 存入記憶體
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.6); 
+                currentRoundData.targetPhoto = dataUrl; 
                 document.getElementById('photo-preview').src = dataUrl;
                 document.getElementById('photo-preview-container').style.display = 'block';
                 showLoading(false);
+                triggerAutoSave(); 
             }; img.src = e.target.result;
         }; reader.readAsDataURL(file);
     }
-    function deletePhoto() { if(confirm("確定刪除此照片？")) { currentRoundData.targetPhoto = null; document.getElementById('photo-preview').src = ""; document.getElementById('photo-preview-container').style.display = 'none'; document.getElementById('target-photo-input').value = ""; } }
+    function deletePhoto() { if(confirm("確定刪除此照片？")) { currentRoundData.targetPhoto = null; document.getElementById('photo-preview').src = ""; document.getElementById('photo-preview-container').style.display = 'none'; document.getElementById('target-photo-input').value = ""; triggerAutoSave(); } }
 
     let scores = []; let currentFocus = { r: 0, c: 0 };
     function initScoreTable(reset) {
@@ -701,50 +751,49 @@
     }
     function applyColor(el,v) { el.className="score-cell active"; if(v==='X'||v==10||v==9)el.classList.add('bg-yellow'); else if(v==8||v==7)el.classList.add('bg-red'); else if(v==6||v==5)el.classList.add('bg-blue'); else if(v==4||v==3)el.classList.add('bg-black'); else el.classList.add('bg-white'); }
     
-    // V23 核心統計邏輯
     function updateTotal() {
-        let total = 0;
-        let count10 = 0; let countX = 0; let count9 = 0;
+        let total = 0; let count10 = 0; let countX = 0; let count9 = 0;
         const mode = document.getElementById('mode-select').value;
-
         scores.forEach(row => {
             row.forEach(v => {
-                // 分數計算
-                if (v === 'X') total += 10;
-                else if (v === 'M') total += 0;
-                else if (v !== null) total += parseInt(v);
-
-                // 統計數量
-                if (v === 'X') countX++;
-                if (v == 10) count10++; // 注意：字串 '10' 與數字 10 寬鬆比較
-                if (v == 9) count9++;
+                if (v === 'X') total += 10; else if (v === 'M') total += 0; else if (v !== null) total += parseInt(v);
+                if (v === 'X') countX++; if (v == 10) count10++; if (v == 9) count9++;
             });
         });
-
         document.getElementById('grand-total').innerText = total;
-
-        // 更新統計欄位
         const statsBox = document.getElementById('stats-display');
-        if (mode === 'outdoor') {
-            // 室外：10+X, X
-            let total10X = count10 + countX;
-            statsBox.innerHTML = `10+X: ${total10X} &nbsp;|&nbsp; X: ${countX}`;
-        } else {
-            // 室內：10, 9
-            // 室內賽 10分通常包含 X
-            let total10 = count10 + countX;
-            statsBox.innerHTML = `10: ${total10} &nbsp;|&nbsp; 9: ${count9}`;
-        }
+        if (mode === 'outdoor') { let total10X = count10 + countX; statsBox.innerHTML = `10+X: ${total10X} &nbsp;|&nbsp; X: ${countX}`; } 
+        else { let total10 = count10 + countX; statsBox.innerHTML = `10: ${total10} &nbsp;|&nbsp; 9: ${count9}`; }
     }
     
     function toggleKeypad() { document.getElementById('keypad').classList.toggle('hidden-keypad'); }
+    
     document.getElementById('coach-comment').addEventListener('focus', () => { document.getElementById('keypad').classList.add('hidden-keypad'); });
+    document.getElementById('coach-comment').addEventListener('input', () => { triggerAutoSave(); });
+
     function setFocus(r,c){ const old=document.querySelector('.score-cell.active'); if(old)old.classList.remove('active'); currentFocus={r,c}; document.getElementById(`cell-${r}-${c}`).classList.add('active'); document.getElementById('keypad').classList.remove('hidden-keypad'); }
     function moveFocus(step){ const rows=scores.length; const cols=scores[0].length; let {r,c}=currentFocus; c+=step; if(c>=cols){c=0;r++;} if(c<0){c=cols-1;r--;} if(r>=0&&r<rows)setFocus(r,c); }
-    function inputScore(v){ if(scores[currentFocus.r]){scores[currentFocus.r][currentFocus.c]=v; refreshTableUI(); moveFocus(1);} }
-    function deleteScore(){ scores[currentFocus.r][currentFocus.c]=null; refreshTableUI(); }
     
-    function handleSign(role){ if(currentRole!==role){alert(`請以 ${role==='coach'?'教練':'射手'} 身分登入`);return;} const div=document.getElementById(`sig-${role}`); updateSigUI(role,!div.innerHTML.includes('stamp-img')); }
+    function inputScore(v){ 
+        if(scores[currentFocus.r]){
+            scores[currentFocus.r][currentFocus.c]=v; 
+            refreshTableUI(); 
+            moveFocus(1);
+            triggerAutoSave(); 
+        } 
+    }
+    function deleteScore(){ 
+        scores[currentFocus.r][currentFocus.c]=null; 
+        refreshTableUI();
+        triggerAutoSave(); 
+    }
+    
+    function handleSign(role){ 
+        if(currentRole!==role){alert(`請以 ${role==='coach'?'教練':'射手'} 身分登入`);return;} 
+        const div=document.getElementById(`sig-${role}`); 
+        updateSigUI(role,!div.innerHTML.includes('stamp-img')); 
+        triggerAutoSave(); 
+    }
     function updateSigUI(role,signed){ const div=document.getElementById(`sig-${role}`); if(signed){div.innerHTML=`<div class="stamp-img">${role==='archer'?'已簽':'認證'}</div>`; div.style.borderBottom="none";} else{div.innerHTML=role==='archer'?'點擊簽到':'點擊簽署'; div.style.borderBottom="2px solid #ccc";} }
     
     function exportPDF(){ document.getElementById('keypad').classList.add('hidden-keypad'); const el=document.getElementById('pdf-export-area'); const opt={margin:0.2, filename:`射箭_${selectedDate}_${currentArcherName}_R${currentRoundIdx+1}.pdf`, image:{type:'jpeg',quality:0.98}, html2canvas:{scale:2}, jsPDF:{unit:'in',format:'a4',orientation:'portrait'}}; html2pdf().set(opt).from(el).save(); }
