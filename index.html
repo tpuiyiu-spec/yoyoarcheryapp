@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Yoyo 教練的射箭訓練 (V17 數據版)</title>
+    <title>Yoyo 教練的射箭訓練 (V18 影像版)</title>
 
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
@@ -34,7 +34,7 @@
         }
         .hidden { display: none !important; }
 
-        /* --- UI 元件 --- */
+        /* --- Header --- */
         .header {
             background: var(--primary-pink); 
             height: var(--header-height); min-height: 80px; 
@@ -52,7 +52,32 @@
 
         .scroll-content { flex: 1; overflow-y: auto; padding: 15px; padding-bottom: 450px; -webkit-overflow-scrolling: touch; }
 
-        /* --- 歷史成績列表樣式 --- */
+        /* --- 照片上傳區樣式 (V18 新增) --- */
+        .photo-section {
+            margin-top: 15px; border: 2px dashed #ccc; border-radius: 10px;
+            padding: 10px; text-align: center; background: #fafafa;
+            position: relative;
+        }
+        .btn-camera {
+            background: var(--primary-blue); color: white; border: none;
+            padding: 8px 20px; border-radius: 20px; font-weight: bold;
+            font-size: 0.9rem; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;
+        }
+        .photo-preview-container {
+            margin-top: 10px; display: none; position: relative;
+        }
+        .photo-preview {
+            max-width: 100%; max-height: 250px; border-radius: 8px;
+            border: 2px solid #eee; box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .btn-delete-photo {
+            position: absolute; top: -10px; right: -10px;
+            background: var(--stamp-red); color: white; border: none;
+            width: 30px; height: 30px; border-radius: 50%; font-weight: bold;
+            cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        /* --- 歷史成績列表 --- */
         .history-card {
             background: white; border: 1px solid #eee; border-left: 5px solid var(--primary-blue);
             border-radius: 10px; padding: 15px; margin-bottom: 10px;
@@ -63,20 +88,17 @@
         .h-date { font-size: 0.85rem; color: #888; margin-bottom: 3px; }
         .h-title { font-weight: bold; font-size: 1.1rem; }
         .h-stats { display: flex; gap: 10px; margin-top: 5px; }
-        .stat-badge { 
-            background: #f0f0f0; padding: 3px 8px; border-radius: 5px; font-size: 0.85rem; color: #555;
-        }
+        .stat-badge { background: #f0f0f0; padding: 3px 8px; border-radius: 5px; font-size: 0.85rem; color: #555; }
         .stat-avg { background: var(--primary-pink); color: white; font-weight: bold; }
         .arrow-right { font-size: 1.5rem; color: #ccc; }
 
-        /* --- 教練儀表板樣式 --- */
+        /* --- 其他樣式 --- */
         .student-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 15px; margin-top: 20px; }
         .student-card { background: white; border: 2px solid var(--primary-blue); border-radius: 15px; padding: 20px; text-align: center; cursor: pointer; transition: transform 0.1s; box-shadow: 0 4px 0 #dbeafe; }
         .student-card:active { transform: translateY(3px); box-shadow: none; }
         .student-icon { font-size: 3rem; margin-bottom: 5px; display: block; }
         .student-name { font-weight: bold; font-size: 1.1rem; color: var(--text-color); word-break: break-all;}
 
-        /* --- 其他樣式 --- */
         .avatar-circle { width: 80px; height: 80px; border-radius: 50%; background: white; border: 3px solid var(--primary-pink); display: flex; align-items: center; justify-content: center; font-size: 3rem; margin: 0 auto 15px auto; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.1); position: relative; }
         .avatar-circle::after { content: '✏️'; position: absolute; bottom: 0; right: 0; font-size: 1rem; background: white; border-radius: 50%; border: 1px solid #ddd; padding: 2px; }
         .emoji-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; padding: 10px; max-height: 300px; overflow-y: auto; }
@@ -179,11 +201,9 @@
         <div class="scroll-content">
             <div style="text-align:center; margin-bottom:15px; padding: 10px; background: #fffbe6; border-radius: 10px;">
                 <h2 id="history-archer-name" style="margin:0; font-size:1.2rem;"></h2>
-                <div style="font-size:0.8rem; color:#666;">點擊紀錄查看詳細 / 按下方按鈕紀錄新成績</div>
+                <div style="font-size:0.8rem; color:#666;">點擊紀錄查看詳細</div>
             </div>
-            
-            <div id="history-list-container">
-                </div>
+            <div id="history-list-container"></div>
             <button class="home-btn btn-blue" style="margin-top:20px;" onclick="navTo('view-calendar')">📅 進入行事曆 / 紀錄新成績</button>
         </div>
     </div>
@@ -259,6 +279,16 @@
                     <label style="font-weight:bold;">📋 教練評語：</label>
                     <textarea id="coach-comment" class="comment-box" placeholder="請輸入評語..."></textarea>
                 </div>
+                
+                <div class="photo-section">
+                    <input type="file" id="target-photo-input" accept="image/*" style="display:none;" onchange="handlePhotoUpload(event)">
+                    <button class="btn-camera" onclick="document.getElementById('target-photo-input').click()">📷 拍攝/上傳靶面</button>
+                    <div id="photo-preview-container" class="photo-preview-container">
+                        <img id="photo-preview" class="photo-preview" src="">
+                        <button class="btn-delete-photo" onclick="deletePhoto()">×</button>
+                    </div>
+                </div>
+
                 <div style="text-align:center; margin-top:10px; color:#ccc; font-size:0.7rem;">
                     Generated by Yoyo Archery App
                 </div>
@@ -436,7 +466,6 @@
         if(!name) { alert("請輸入名字"); return; }
         currentArcherName = name; updateUIForArcher(name);
         loadCloudData(name, () => { 
-            // 射手登入後，現在也直接進入歷史總覽頁
             renderStudentHistory(name, currentArcherAvatar);
             navTo('view-student-history', 'archer'); 
         });
@@ -446,16 +475,13 @@
         document.getElementById('pdf-archer-name').innerText = `射手: ${currentArcherAvatar} ${name}`;
     }
     
-    // 歷史頁面的返回
     function handleHistoryBack() {
-        if(currentRole === 'coach') navTo('view-coach-dashboard'); // 教練回名單
-        else navTo('view-home'); // 射手回首頁登出
+        if(currentRole === 'coach') navTo('view-coach-dashboard'); 
+        else navTo('view-home'); 
     }
-    // 月曆頁面的返回
     function handleCalendarBack() {
-        navTo('view-student-history'); // 大家都回歷史頁
+        navTo('view-student-history'); 
     }
-    // 計分頁面的返回
     function goBackFromScore() {
         if(lastView === 'view-student-history') navTo('view-student-history');
         else navTo('view-calendar');
@@ -525,7 +551,7 @@
         document.getElementById('coach-comment').readOnly = (currentRole === 'archer');
     }
 
-    function createEmptyRound(dayData) { dayData.rounds.push({ mode: 'outdoor', scores: null, total: 0, comment: '', archerSigned: false, coachSigned: false }); return dayData.rounds.length - 1; }
+    function createEmptyRound(dayData) { dayData.rounds.push({ mode: 'outdoor', scores: null, total: 0, comment: '', archerSigned: false, coachSigned: false, targetPhoto: null }); return dayData.rounds.length - 1; }
     function renderRoundSelector(dayData) {
         const sel = document.getElementById('round-selector'); sel.innerHTML = "";
         dayData.rounds.forEach((r, idx) => { const opt = document.createElement('option'); opt.value = idx; opt.text = `R${idx + 1} (${r.total})`; sel.appendChild(opt); });
@@ -544,12 +570,21 @@
         document.getElementById('mode-select').value = r.mode || 'outdoor';
         document.getElementById('coach-comment').value = r.comment || '';
         document.getElementById('round-label-display').innerText = `Round ${currentRoundIdx + 1}`;
+        // 照片載入邏輯
+        const preview = document.getElementById('photo-preview');
+        const container = document.getElementById('photo-preview-container');
+        if(r.targetPhoto) {
+            preview.src = r.targetPhoto; container.style.display = 'block';
+        } else {
+            preview.src = ""; container.style.display = 'none';
+        }
         initScoreTable(false); updateSigUI('archer', r.archerSigned); updateSigUI('coach', r.coachSigned);
     }
     function updateCurrentRoundData() {
         currentRoundData.mode = document.getElementById('mode-select').value; currentRoundData.scores = scores; currentRoundData.total = document.getElementById('grand-total').innerText;
         currentRoundData.comment = document.getElementById('coach-comment').value; currentRoundData.archerSigned = document.getElementById('sig-archer').innerHTML.includes('stamp-img');
         currentRoundData.coachSigned = document.getElementById('sig-coach').innerHTML.includes('stamp-img');
+        // 照片已在 handlePhotoUpload 即時更新到 currentRoundData
     }
     function saveCurrentRound() {
         updateCurrentRoundData();
@@ -557,6 +592,48 @@
         localCacheData[selectedDate].rounds[currentRoundIdx] = currentRoundData;
         renderRoundSelector(localCacheData[selectedDate]);
         saveToCloud(() => { alert('✅ 雲端同步成功！'); });
+    }
+
+    // --- V18 照片邏輯 ---
+    function handlePhotoUpload(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        
+        showLoading(true, "處理照片中...");
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const img = new Image();
+            img.onload = function() {
+                // 壓縮邏輯
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                const MAX_WIDTH = 600; 
+                let width = img.width; let height = img.height;
+                
+                if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
+                canvas.width = width; canvas.height = height;
+                ctx.drawImage(img, 0, 0, width, height);
+                
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.6); // 0.6 品質
+                currentRoundData.targetPhoto = dataUrl; // 存入記憶體
+                
+                // 更新 UI
+                document.getElementById('photo-preview').src = dataUrl;
+                document.getElementById('photo-preview-container').style.display = 'block';
+                showLoading(false);
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function deletePhoto() {
+        if(confirm("確定刪除此照片？")) {
+            currentRoundData.targetPhoto = null;
+            document.getElementById('photo-preview').src = "";
+            document.getElementById('photo-preview-container').style.display = 'none';
+            document.getElementById('target-photo-input').value = ""; // Reset input
+        }
     }
 
     let scores = []; let currentFocus = { r: 0, c: 0 };
