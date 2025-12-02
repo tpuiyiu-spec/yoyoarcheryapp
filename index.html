@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Yoyo 教練的射箭訓練</title>
+    <title>Yoyo 教練的射箭訓練 (V34 最終修復版)</title>
 
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     
     <style>
-        /* --- 全局變數 --- */
+        /* --- CSS 全局設定 --- */
         :root {
             --primary-pink: #ffcbdb; --primary-blue: #a2d2ff; --primary-yellow: #fffdf5;
             --text-color: #5d4037; --stamp-red: #ff6b6b;
@@ -18,21 +18,23 @@
             --target-black: #333333; --target-white: #ffffff;
             --font-main: 'Helvetica Rounded', Arial, sans-serif;
             --safe-top: env(safe-area-inset-top, 20px);
-            --header-height: calc(60px + var(--safe-top)); 
+            --header-height: calc(60px + var(--safe-top));
+            --app-max-width: 600px;
         }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         
         body {
-            font-family: var(--font-main); background-color: var(--primary-yellow);
+            font-family: var(--font-main); background-color: #f0f2f5;
             color: var(--text-color); margin: 0; padding: 0;
             display: flex; justify-content: center; 
-            height: 100dvh; 
-            overflow: hidden;
+            height: 100dvh; /* 關鍵：固定視窗高度 */
+            overflow: hidden; /* 禁止整個網頁捲動，只捲動內容區 */
         }
+
         .app-container {
-            width: 100%; max-width: 800px; background: #fff; height: 100%;
-            display: flex; flex-direction: column; box-shadow: 0 0 20px rgba(0,0,0,0.1);
-            position: relative;
+            width: 100%; max-width: var(--app-max-width); background: #fff; 
+            height: 100%; display: flex; flex-direction: column; 
+            position: relative; box-shadow: 0 0 30px rgba(0,0,0,0.1); 
         }
         .hidden { display: none !important; }
 
@@ -52,40 +54,44 @@
             display: flex; align-items: center; justify-content: center;
         }
 
+        /* --- 捲動區域 (Scroll Area) --- */
         .scroll-content { 
-            flex: 1; overflow-y: auto; padding: 15px; padding-bottom: 500px !important; 
-            -webkit-overflow-scrolling: touch; scroll-behavior: smooth;
+            flex: 1; /* 佔滿剩餘空間 */
+            overflow-y: auto; /* 允許垂直捲動 */
+            padding: 15px; 
+            padding-bottom: 400px !important; /* 預留超大底部空間給鍵盤 */
+            -webkit-overflow-scrolling: touch; /* iOS 滑動慣性 */
+            scroll-behavior: smooth;
         }
+        /* 隱藏捲軸但保留功能 (美觀) */
+        .scroll-content::-webkit-scrollbar { width: 6px; }
+        .scroll-content::-webkit-scrollbar-thumb { background-color: #ddd; border-radius: 3px; }
 
-        /* --- 自動儲存狀態 --- */
-        .save-status {
-            font-size: 0.75rem; color: #666; margin-left: auto; margin-right: 10px;
-            white-space: nowrap; font-weight: bold;
+        /* --- 鍵盤容器 --- */
+        .keypad-container { 
+            position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+            width: 100%; max-width: var(--app-max-width);
+            background: white; padding: 8px; padding-bottom: calc(8px + env(safe-area-inset-bottom));
+            box-shadow: 0 -4px 15px rgba(0,0,0,0.15); 
+            z-index: 100; display: flex; flex-direction: column; gap: 5px; 
+            height: 260px; transition: transform 0.3s ease; 
         }
+        .keypad-container.hidden-keypad { transform: translate(-50%, 110%); }
+        .key-row { display: flex; gap: 4px; height: 100%; max-height: 55px; }
+        .key-btn { flex: 1; border: none; border-radius: 6px; font-size: 1.2rem; font-weight: bold; cursor: pointer; box-shadow: 0 2px 0 rgba(0,0,0,0.2); }
+        .key-btn:active { transform: translateY(2px); box-shadow: none; }
+        .k-y { background: var(--target-yellow); } .k-r { background: var(--target-red); color: white; } 
+        .k-b { background: var(--target-blue); color: white; } .k-bk { background: var(--target-black); color: white; } 
+        .k-w { background: white; border: 1px solid #ccc; } .k-del { background: #ffcdd2; color: #d32f2f; flex: 1.5; } 
+        .k-nav { background: var(--primary-pink); color: white; font-size: 1rem; }
 
-        /* --- 統計與總分區域 --- */
-        .summary-row {
-            display: flex; justify-content: flex-end; align-items: center; gap: 10px;
-            margin-top: 10px; margin-bottom: 10px;
-        }
-        .stats-box {
-            background: #e3f2fd; color: #1565c0; padding: 10px 15px;
-            border-radius: 10px; font-weight: bold; font-size: 1rem;
-            box-shadow: 0 2px 0 rgba(0,0,0,0.05); border: 1px solid #bbdefb;
-        }
-        .total-display { 
-            text-align: right; font-size: 1.3rem; font-weight: bold; 
-            background: var(--primary-pink); color: white; padding: 10px 20px; 
-            border-radius: 10px; box-shadow: 0 2px 4px rgba(255, 203, 219, 0.6);
-        }
-
-        /* --- 歷史成績列表 --- */
-        .history-card {
-            background: white; border: 1px solid #eee; border-left: 5px solid var(--primary-blue);
-            border-radius: 10px; padding: 15px; margin-bottom: 15px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05); cursor: pointer;
-            display: flex; flex-direction: column;
-        }
+        /* --- 元素樣式 --- */
+        .save-status { font-size: 0.75rem; color: #666; margin-left: auto; margin-right: 10px; white-space: nowrap; font-weight: bold; }
+        .summary-row { display: flex; justify-content: flex-end; align-items: center; gap: 10px; margin-top: 10px; margin-bottom: 10px; }
+        .stats-box { background: #e3f2fd; color: #1565c0; padding: 10px 15px; border-radius: 10px; font-weight: bold; font-size: 1rem; box-shadow: 0 2px 0 rgba(0,0,0,0.05); border: 1px solid #bbdefb; }
+        .total-display { text-align: right; font-size: 1.3rem; font-weight: bold; background: var(--primary-pink); color: white; padding: 10px 20px; border-radius: 10px; box-shadow: 0 2px 4px rgba(255, 203, 219, 0.6); }
+        
+        .history-card { background: white; border: 1px solid #eee; border-left: 5px solid var(--primary-blue); border-radius: 10px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); cursor: pointer; display: flex; flex-direction: column; }
         .history-card:active { background: #f9f9f9; }
         .history-header { display: flex; justify-content: space-between; align-items: flex-start; width: 100%; }
         .history-info { flex: 1; }
@@ -95,16 +101,11 @@
         .stat-badge { background: #f0f0f0; padding: 3px 8px; border-radius: 5px; font-size: 0.85rem; color: #555; }
         .stat-avg { background: var(--primary-pink); color: white; font-weight: bold; }
         .h-comment { margin-top: 10px; padding: 8px; background: #f8f9fa; border-radius: 8px; font-size: 0.9rem; color: #444; border-left: 3px solid #ccc; }
-        .btn-delete-record {
-            background: #ffebee; color: #c62828; border: 1px solid #ffcdd2;
-            width: 35px; height: 35px; border-radius: 50%; font-size: 1rem; 
-            cursor: pointer; display: flex; align-items: center; justify-content: center;
-            margin-left: 10px; flex-shrink: 0;
-        }
+        
+        .btn-delete-record { background: #ffebee; color: #c62828; border: 1px solid #ffcdd2; width: 35px; height: 35px; border-radius: 50%; font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; margin-left: 10px; flex-shrink: 0; }
         .btn-danger-zone { margin-top: 30px; margin-bottom: 30px; padding: 15px; border: 2px dashed #ffcdd2; border-radius: 15px; text-align: center; }
         .btn-danger { background: #c62828; color: white; border: none; padding: 10px 20px; border-radius: 20px; font-weight: bold; cursor: pointer; }
-
-        /* --- 其他樣式 --- */
+        
         .student-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 15px; margin-top: 20px; }
         .student-card { background: white; border: 2px solid var(--primary-blue); border-radius: 15px; padding: 20px; text-align: center; cursor: pointer; transition: transform 0.1s; box-shadow: 0 4px 0 #dbeafe; }
         .student-card:active { transform: translateY(3px); box-shadow: none; }
@@ -150,13 +151,17 @@
         .photo-preview-container { margin-top: 10px; display: none; position: relative; }
         .photo-preview { max-width: 100%; max-height: 250px; border-radius: 8px; border: 2px solid #eee; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         .btn-delete-photo { position: absolute; top: -10px; right: -10px; background: var(--stamp-red); color: white; border: none; width: 30px; height: 30px; border-radius: 50%; font-weight: bold; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
-
-        .keypad-container { position: fixed; bottom: 0; left: 0; right: 0; background: white; padding: 8px; box-shadow: 0 -4px 15px rgba(0,0,0,0.15); z-index: 100; display: flex; flex-direction: column; gap: 5px; max-width: 800px; margin: 0 auto; height: 260px; transition: transform 0.3s ease; }
-        .keypad-container.hidden-keypad { transform: translateY(110%); }
-        .key-row { display: flex; gap: 4px; height: 100%; max-height: 55px; }
-        .key-btn { flex: 1; border: none; border-radius: 6px; font-size: 1.2rem; font-weight: bold; cursor: pointer; box-shadow: 0 2px 0 rgba(0,0,0,0.2); }
-        .key-btn:active { transform: translateY(2px); box-shadow: none; }
-        .k-y { background: var(--target-yellow); } .k-r { background: var(--target-red); color: white; } .k-b { background: var(--target-blue); color: white; } .k-bk { background: var(--target-black); color: white; } .k-w { background: white; border: 1px solid #ccc; } .k-del { background: #ffcdd2; color: #d32f2f; flex: 1.5; } .k-nav { background: var(--primary-pink); color: white; font-size: 1rem; }
+        
+        /* 回頂按鈕 */
+        .btn-back-to-top {
+            position: fixed; bottom: 280px; left: 50%; margin-left: 240px;
+            width: 45px; height: 45px; border-radius: 50%;
+            background: rgba(255, 203, 219, 0.95); color: white; border: 2px solid white; 
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2); font-size: 1.5rem; display: flex; align-items: center; justify-content: center;
+            cursor: pointer; z-index: 150; opacity: 0; pointer-events: none; transition: opacity 0.3s, transform 0.2s;
+        }
+        @media (max-width: 600px) { .btn-back-to-top { left: auto; right: 20px; margin-left: 0; } }
+        .btn-back-to-top.visible { opacity: 1; pointer-events: auto; transform: scale(1); }
 
         .mascot-area { text-align: center; margin-top: 30px; font-size: 80px; animation: bounce 2s infinite; }
         @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
@@ -164,7 +169,6 @@
         .home-btn:active { transform: translateY(3px); box-shadow: none; }
         .btn-pink { background: var(--primary-pink); color: white; border: none; }
         .btn-blue { background: var(--primary-blue); color: white; border: none; }
-        
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 200; display: flex; align-items: center; justify-content: center; }
         .modal-box { background: white; padding: 25px; border-radius: 20px; text-align: center; width: 85%; max-width: 350px; }
     </style>
@@ -177,6 +181,8 @@
         <div class="spinner"></div>
         <div id="loading-text">連線中...</div>
     </div>
+    
+    <div id="back-to-top" class="btn-back-to-top" onclick="scrollToTop()">⬆️</div>
 
     <div id="view-home">
         <div class="header">
@@ -262,14 +268,13 @@
         <div class="top-toolbar">
             <select id="round-selector" class="round-selector" onchange="switchRound()"></select>
             <span id="save-status" class="save-status"></span>
-            
             <button class="btn-tool" onclick="exportPDF()">📄 PDF</button>
             <button class="btn-tool" style="border-color:var(--primary-blue);" onclick="toggleKeypad()">⌨️ 鍵盤</button>
         </div>
         
-        <div class="scroll-content">
+        <div class="scroll-content" id="score-scroll-area">
             <div id="pdf-export-area" class="pdf-area">
-                <div class="controls-info">
+                <div class="controls-info" style="display:flex; justify-content:space-between; margin-bottom:5px;">
                     <span id="date-label" style="font-weight:bold;"></span>
                     <span id="pdf-archer-name" style="color:#555;"></span>
                 </div>
@@ -359,7 +364,7 @@
 </div>
 
 <script>
-    // --- 1. FIREBASE CONFIG ---
+    // --- 1. FIREBASE CONFIG (已填入) ---
     const firebaseConfig = {
         apiKey: "AIzaSyBfy1pe_3WIigOpZXXI3kASKqhxEsHWGO8",
         authDomain: "yoyo-archery-app.firebaseapp.com",
@@ -384,6 +389,23 @@
     let lastView = 'view-home'; 
     let autoSaveTimer = null; 
 
+    // V34 捲動偵測
+    function setupScrollListener() {
+        const allScrollContents = document.querySelectorAll('.scroll-content');
+        const btn = document.getElementById('back-to-top');
+        allScrollContents.forEach(el => {
+            el.onscroll = function() {
+                if (!el.parentElement.classList.contains('hidden') && el.scrollTop > 300) btn.classList.add('visible');
+                else btn.classList.remove('visible');
+            };
+        });
+    }
+    function scrollToTop() {
+        const visiblePage = document.querySelector('.app-container > div:not(.hidden) .scroll-content');
+        if(visiblePage) visiblePage.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    setupScrollListener();
+
     function showLoading(show, text="連線中...") {
         const el = document.getElementById('loading');
         document.getElementById('loading-text').innerText = text;
@@ -400,7 +422,7 @@
             showLoading(false);
             if(callback) callback();
         }).catch((error) => {
-            showLoading(false); alert("讀取失敗，請檢查網路");
+            showLoading(false); alert("讀取失敗: " + error.code);
         });
     }
 
@@ -503,8 +525,6 @@
             const total = parseInt(r.total) || 0;
             const avg = arrowCount > 0 ? (total / arrowCount).toFixed(1) : "0.0";
             const modeText = r.mode === 'indoor' ? '室內' : '室外';
-            
-            // V25: 顯示弓種
             const bowText = r.bowType === 'compound' ? '複合弓' : '反曲弓';
             
             let commentHtml = '';
@@ -594,6 +614,7 @@
 
         const color = currentRole === 'coach' ? 'var(--primary-blue)' : 'var(--primary-pink)';
         document.querySelectorAll('.header').forEach(h => h.style.background = color);
+        document.getElementById('back-to-top').classList.remove('visible');
     }
 
     function openLogin() { document.getElementById('login-modal').classList.remove('hidden'); }
@@ -649,9 +670,7 @@
         document.getElementById('coach-comment').readOnly = (currentRole === 'archer');
     }
 
-    // V25: 預設弓種
     function createEmptyRound(dayData) { dayData.rounds.push({ mode: 'outdoor', bowType: 'recurve', scores: null, total: 0, comment: '', archerSigned: false, coachSigned: false }); return dayData.rounds.length - 1; }
-    
     function renderRoundSelector(dayData) {
         const sel = document.getElementById('round-selector'); sel.innerHTML = "";
         dayData.rounds.forEach((r, idx) => { const opt = document.createElement('option'); opt.value = idx; opt.text = `R${idx + 1} (${r.total})`; sel.appendChild(opt); });
@@ -671,12 +690,10 @@
             } else { document.getElementById('round-selector').value = currentRoundIdx; }
         } else { currentRoundIdx = parseInt(val); loadRoundData(dayData.rounds[currentRoundIdx]); }
     }
-    
-    // V25: 載入時設定弓種選單
     function loadRoundData(r) {
         currentRoundData = r;
         document.getElementById('mode-select').value = r.mode || 'outdoor';
-        document.getElementById('bow-selector').value = r.bowType || 'recurve'; // Load Bow Type
+        document.getElementById('bow-selector').value = r.bowType || 'recurve'; 
         document.getElementById('coach-comment').value = r.comment || '';
         document.getElementById('round-label-display').innerText = `Round ${currentRoundIdx + 1}`;
         const preview = document.getElementById('photo-preview');
@@ -685,16 +702,13 @@
         else { preview.src = ""; container.style.display = 'none'; }
         initScoreTable(false); updateSigUI('archer', r.archerSigned); updateSigUI('coach', r.coachSigned);
     }
-    
-    // V25: 更新時儲存弓種
     function updateCurrentRoundData() {
         currentRoundData.mode = document.getElementById('mode-select').value; 
-        currentRoundData.bowType = document.getElementById('bow-selector').value; // Save Bow Type
+        currentRoundData.bowType = document.getElementById('bow-selector').value; 
         currentRoundData.scores = scores; currentRoundData.total = document.getElementById('grand-total').innerText;
         currentRoundData.comment = document.getElementById('coach-comment').value; currentRoundData.archerSigned = document.getElementById('sig-archer').innerHTML.includes('stamp-img');
         currentRoundData.coachSigned = document.getElementById('sig-coach').innerHTML.includes('stamp-img');
     }
-    
     function saveCurrentRound(isSilent = false) {
         updateCurrentRoundData();
         if(!localCacheData[selectedDate]) localCacheData[selectedDate] = { rounds: [] };
