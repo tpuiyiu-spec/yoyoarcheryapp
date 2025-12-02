@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Yoyo 教練的射箭訓練 (V35 修復版)</title>
+    <title>Yoyo 射箭 (V35 分頁版)</title>
 
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
@@ -12,265 +12,214 @@
     <style>
         /* --- 全局變數 --- */
         :root {
-            --primary-pink: #ffcbdb;
-            --primary-blue: #a2d2ff;
-            --primary-yellow: #fffdf5;
-            --text-color: #5d4037;
-            --stamp-red: #ff6b6b;
-            --target-yellow: #ffe552;
-            --target-red: #ff5252;
-            --target-blue: #448aff;
-            --target-black: #333333;
-            --target-white: #ffffff;
+            --primary-pink: #ffcbdb; --primary-blue: #a2d2ff; --primary-yellow: #fffdf5;
+            --text-color: #5d4037; --stamp-red: #ff6b6b;
+            --target-yellow: #ffe552; --target-red: #ff5252; --target-blue: #448aff;
+            --target-black: #333333; --target-white: #ffffff;
             --font-main: 'Helvetica Rounded', Arial, sans-serif;
+            /* 安全區域 */
             --safe-top: env(safe-area-inset-top, 20px);
-            --app-max-width: 600px;
+            --safe-bottom: env(safe-area-inset-bottom, 20px);
         }
-
+        
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         
         body {
-            font-family: var(--font-main);
-            background-color: #f0f2f5;
-            color: var(--text-color);
-            margin: 0; padding: 0;
+            font-family: var(--font-main); background-color: #f0f2f5;
+            color: var(--text-color); margin: 0; padding: 0;
+            /* 鎖定 Body 不捲動，只讓內部的 scroll-content 捲動 */
+            height: 100vh; height: 100dvh; 
+            overflow: hidden; 
             display: flex; justify-content: center;
-            height: 100dvh; /* 固定視窗高度 */
-            overflow: hidden; /* 內部捲動 */
         }
 
+        /* --- App 容器 (Flex 直向排列) --- */
         .app-container {
-            width: 100%;
-            max-width: var(--app-max-width);
-            background: #fff;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            position: relative;
-            box-shadow: 0 0 30px rgba(0,0,0,0.1);
+            width: 100%; max-width: 600px; background: #fff; 
+            height: 100%; 
+            display: flex; flex-direction: column; /* 關鍵：垂直排列 */
+            position: relative; box-shadow: 0 0 30px rgba(0,0,0,0.1); 
         }
-
         .hidden { display: none !important; }
 
-        /* --- 頂部 Header --- */
+        /* --- Header (不再懸浮，佔用實體空間) --- */
         .header {
-            background: var(--primary-pink);
-            min-height: 70px;
-            padding-top: var(--safe-top);
+            background: var(--primary-pink); 
+            min-height: 60px; /* 基礎高度 */
+            /* 加上安全區域高度 */
+            padding-top: max(15px, var(--safe-top)); 
             padding-left: 15px; padding-right: 15px; padding-bottom: 10px;
+            
             display: flex; align-items: flex-end; justify-content: space-between;
-            flex-shrink: 0; z-index: 20;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            flex-shrink: 0; /* 禁止壓縮 */
+            z-index: 20; box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
-        .header h1 {
-            font-size: 1.2rem; margin: 0; color: white;
-            text-shadow: 1px 1px 0 var(--text-color);
-            margin-bottom: 5px;
-        }
+        .header h1 { font-size: 1.2rem; margin: 0; color: white; text-shadow: 1px 1px 0 var(--text-color); }
         .btn-header {
             background: rgba(255,255,255,0.95); border: none; color: var(--text-color);
-            padding: 8px 15px; border-radius: 20px; font-weight: bold; cursor: pointer;
-            font-size: 0.95rem; box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+            padding: 6px 15px; border-radius: 20px; font-weight: bold; cursor: pointer;
+            font-size: 0.95rem; box-shadow: 0 2px 4px rgba(0,0,0,0.15); 
             display: flex; align-items: center; justify-content: center;
         }
 
-        /* --- 內容捲動區 (關鍵設定) --- */
-        .scroll-content {
+        /* --- Toolbar (佔用實體空間) --- */
+        .top-toolbar {
+            background: #f5f5f5; height: 55px; 
+            padding: 0 10px; 
+            display: flex; align-items: center; justify-content: flex-start; gap: 10px; 
+            flex-shrink: 0; /* 禁止壓縮 */
+            border-bottom: 1px solid #ddd; overflow-x: auto; 
+        }
+        .btn-tool { background: white; border: 1px solid #ccc; padding: 5px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: bold; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
+        .round-selector { padding: 6px; border-radius: 15px; border: 2px solid var(--primary-blue); background: white; color: var(--text-color); font-weight: bold; font-size: 0.9rem; flex-shrink: 0;}
+        .save-status { font-size: 0.75rem; color: #666; margin-left: auto; margin-right: 10px; white-space: nowrap; font-weight: bold; }
+
+        /* --- 新增: 分頁導覽列 --- */
+        .tab-bar {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            background: white;
+            padding: 0 15px;
+            height: 50px;
+            border-bottom: 1px solid #ddd;
+            flex-shrink: 0;
+            z-index: 10;
+        }
+        .tab-btn {
             flex: 1;
-            overflow-y: auto;
-            padding: 15px;
-            padding-bottom: 450px !important; /* 預留底部空間，防止被鍵盤擋住 */
-            -webkit-overflow-scrolling: touch;
+            height: 100%;
+            background: transparent;
+            border: none;
+            font-size: 1.05rem;
+            font-weight: bold;
+            color: #999;
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        .tab-btn.active {
+            color: var(--text-color);
+            border-bottom: 3px solid var(--primary-pink);
+        }
+        .tab-content {
+            padding-top: 5px; 
+        }
+        .hidden-tab {
+            display: none !important;
+        }
+
+        /* --- 捲動內容區 (自動填滿剩餘空間) --- */
+        .scroll-content { 
+            flex: 1; /* 佔滿 Header 和 Toolbar 剩下的所有空間 */
+            overflow-y: auto; /* 只有這裡可以捲動 */
+            padding: 15px; 
+            /* 關鍵：超大底部留白，讓內容可以被推到鍵盤上方 */
+            padding-bottom: 500px; 
+            -webkit-overflow-scrolling: touch; 
             scroll-behavior: smooth;
         }
 
-        /* --- 登入頁樣式 --- */
-        .login-area {
-            background: white; padding: 25px; border-radius: 20px;
-            margin: 20px auto; box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-            border: 2px solid #eee; text-align: center;
+        /* --- 登入頁面修正 --- */
+        /* 確保登入頁內容不會太靠上 */
+        .login-view-content {
+            display: flex; flex-direction: column; align-items: center; padding-top: 20px;
         }
-        .login-input {
-            width: 100%; padding: 15px; font-size: 1.2rem;
-            border: 2px solid var(--primary-blue); border-radius: 15px;
-            text-align: center; margin-bottom: 15px; outline: none;
-        }
-        .mascot-area {
-            text-align: center; margin-top: 30px;
-            font-size: 80px; animation: bounce 2s infinite;
-        }
-        @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
 
-        .home-btn {
-            display: block; width: 100%; padding: 15px;
-            border-radius: 30px; border: 2px solid var(--text-color);
-            font-size: 1.1rem; font-weight: bold; cursor: pointer;
-            background: white; color: var(--text-color);
-            box-shadow: 0 4px 0 #ddd; margin-bottom: 15px; transition: 0.1s;
-        }
-        .home-btn:active { transform: translateY(3px); box-shadow: none; }
+        /* --- 其他組件 --- */
+        .mascot-area { font-size: 80px; margin-bottom: 10px; }
+        .login-area { background: white; padding: 25px; border-radius: 20px; width: 90%; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 2px solid #eee; text-align: center; }
+        .login-input { width: 100%; padding: 15px; font-size: 1.2rem; border: 2px solid var(--primary-blue); border-radius: 15px; text-align: center; margin-bottom: 15px; outline: none; }
+        .home-btn { display: block; width: 100%; padding: 15px; border-radius: 30px; border: 2px solid var(--text-color); font-size: 1.1rem; font-weight: bold; cursor: pointer; background: white; color: var(--text-color); box-shadow: 0 4px 0 #ddd; margin-bottom: 15px; }
         .btn-pink { background: var(--primary-pink); color: white; border: none; }
         .btn-blue { background: var(--primary-blue); color: white; border: none; }
 
-        /* --- 頭像選擇 --- */
-        .avatar-circle {
-            width: 80px; height: 80px; border-radius: 50%;
-            background: white; border: 3px solid var(--primary-pink);
-            display: flex; align-items: center; justify-content: center;
-            font-size: 3rem; margin: 0 auto 15px auto; cursor: pointer;
-            position: relative;
-        }
-        .avatar-circle::after {
-            content: '✏️'; position: absolute; bottom: 0; right: 0;
-            font-size: 1rem; background: white; border-radius: 50%;
-            border: 1px solid #ddd; padding: 2px;
-        }
-
+        .avatar-circle { width: 80px; height: 80px; border-radius: 50%; background: white; border: 3px solid var(--primary-pink); display: flex; align-items: center; justify-content: center; font-size: 3rem; margin: 0 auto 15px auto; cursor: pointer; }
+        
         /* --- 列表與卡片 --- */
-        .student-list {
-            display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-            gap: 15px; margin-top: 20px;
-        }
-        .student-card {
-            background: white; border: 2px solid var(--primary-blue);
-            border-radius: 15px; padding: 20px; text-align: center;
-            cursor: pointer; box-shadow: 0 4px 0 #dbeafe;
-        }
-        .student-icon { font-size: 3rem; display: block; margin-bottom: 5px; }
-        .student-name { font-weight: bold; font-size: 1.1rem; word-break: break-all; }
-
-        .history-card {
-            background: white; border: 1px solid #eee;
-            border-left: 5px solid var(--primary-blue);
-            border-radius: 10px; padding: 15px; margin-bottom: 15px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-            display: flex; flex-direction: column; cursor: pointer;
-        }
-        .history-header { display: flex; justify-content: space-between; width: 100%; }
-        .history-info { flex: 1; }
-        .h-date { font-size: 0.85rem; color: #888; margin-bottom: 3px; }
+        .student-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 15px; margin-top: 20px; }
+        .student-card { background: white; border: 2px solid var(--primary-blue); border-radius: 15px; padding: 20px; text-align: center; cursor: pointer; box-shadow: 0 4px 0 #dbeafe; }
+        .history-card { background: white; border: 1px solid #eee; border-left: 5px solid var(--primary-blue); border-radius: 10px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); cursor: pointer; }
+        .history-info { display: flex; justify-content: space-between; align-items: center; }
         .h-title { font-weight: bold; font-size: 1.1rem; }
-        .h-stats { display: flex; gap: 10px; margin-top: 5px; flex-wrap: wrap; }
-        .stat-badge { background: #f0f0f0; padding: 3px 8px; border-radius: 5px; font-size: 0.85rem; color: #555; }
-        .h-comment { margin-top: 10px; padding: 8px; background: #f8f9fa; border-radius: 5px; font-size: 0.9rem; color: #444; border-left: 3px solid #ccc; }
-        
-        .btn-delete-record {
-            background: #ffebee; color: #c62828; border: 1px solid #ffcdd2;
-            width: 35px; height: 35px; border-radius: 50%; font-size: 1rem;
-            cursor: pointer; display: flex; align-items: center; justify-content: center;
-            margin-left: 10px; flex-shrink: 0;
-        }
+        .h-stats { font-size: 0.9rem; color: #666; margin-top: 5px; }
+        .btn-delete-record { background: #ffebee; color: #c62828; border: 1px solid #ffcdd2; width: 35px; height: 35px; border-radius: 50%; cursor: pointer; margin-left: 10px; }
 
-        /* --- 月曆 --- */
-        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-top: 10px; }
-        .cal-day {
-            aspect-ratio: 0.9; background: white; border: 1px solid #eee;
-            border-radius: 8px; padding: 2px; position: relative; cursor: pointer;
-        }
-        .cal-day.today { border: 2px solid var(--primary-blue); background: #f0f8ff; }
-        .cal-scores { font-size: 0.6rem; color: #666; display: flex; flex-direction: column; margin-top: 2px; }
-        .stamp-mark { position: absolute; bottom: 1px; right: 1px; font-size: 16px; }
-
-        /* --- 計分板 --- */
-        .pdf-area { background: white; padding: 10px; border-radius: 10px; border: 1px solid #eee; }
-        
-        .top-toolbar {
-            background: #f5f5f5; height: 55px; padding: 0 10px;
-            display: flex; align-items: center; gap: 10px;
-            flex-shrink: 0; border-bottom: 1px solid #ddd; overflow-x: auto;
-        }
-        .btn-tool {
-            background: white; border: 1px solid #ccc; padding: 5px 12px;
-            border-radius: 20px; font-size: 0.85rem; font-weight: bold;
-            cursor: pointer; white-space: nowrap;
-        }
-        .round-selector {
-            padding: 6px; border-radius: 15px; border: 2px solid var(--primary-blue);
-            font-weight: bold; font-size: 0.9rem;
-        }
-        .save-status { font-size: 0.75rem; color: #666; margin-left: auto; font-weight: bold; white-space: nowrap; }
-
+        /* --- 計分表格 --- */
         .score-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; background: white; border-radius: 8px; overflow: hidden; font-size: 0.9rem; }
         .score-table th { background: var(--primary-blue); color: white; padding: 8px 2px; }
         .score-table td { border: 1px solid #ddd; height: 42px; padding: 0; text-align: center; }
         .score-cell { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; font-weight: bold; cursor: pointer; }
         .score-cell.active { box-shadow: inset 0 0 0 3px var(--primary-pink); }
-        
-        .bg-yellow { background-color: var(--target-yellow); }
-        .bg-red { background-color: var(--target-red); }
-        .bg-blue { background-color: var(--target-blue); }
-        .bg-black { background-color: var(--target-black); color: white !important; text-shadow: 0 0 2px black; }
-        .bg-white { background-color: var(--target-white); }
+        .bg-yellow { background-color: var(--target-yellow); } .bg-red { background-color: var(--target-red); } .bg-blue { background-color: var(--target-blue); } .bg-black { background-color: var(--target-black); color: white !important; text-shadow: 0 0 2px black; } .bg-white { background-color: var(--target-white); }
 
-        .summary-row { display: flex; justify-content: flex-end; align-items: center; gap: 10px; margin: 10px 0; }
-        .stats-box { background: #e3f2fd; color: #1565c0; padding: 10px; border-radius: 10px; font-weight: bold; }
-        .total-display { text-align: right; font-size: 1.3rem; font-weight: bold; background: var(--primary-pink); color: white; padding: 10px; border-radius: 10px; }
-
-        /* --- 簽到區 (V35 重點修復) --- */
-        .signature-area {
-            display: flex; justify-content: space-around; margin-top: 20px;
-            border: 2px dashed #bbb; /* 加深邊框 */
-            padding: 15px; border-radius: 15px; background: #fafafa;
-        }
-        .sig-box {
-            text-align: center; width: 45%; cursor: pointer;
-            background: white; border: 1px solid #ddd; border-radius: 10px; padding: 5px;
-            transition: transform 0.1s;
-        }
-        .sig-box:active { transform: scale(0.95); background: #f0f0f0; }
-        .sig-placeholder {
-            height: 50px; border-bottom: 2px solid #ccc; margin-bottom: 5px;
-            display: flex; align-items: flex-end; justify-content: center;
-            color: #aaa; font-size: 0.9rem; font-weight: bold;
-        }
-        .stamp-img {
-            border: 3px double var(--stamp-red); color: var(--stamp-red);
-            font-weight: bold; padding: 5px 10px; transform: rotate(-8deg);
-            font-family: 'Courier New', monospace; font-size: 1.1rem;
-            display: inline-block; margin-bottom: 5px;
-        }
-
-        .comment-box { width: 100%; border: 1px solid #ddd; background: #fff; height: 60px; margin-top: 5px; padding: 5px; border-radius: 5px; }
-        .photo-section { margin-top: 15px; padding: 10px; border: 2px dashed #ccc; border-radius: 10px; text-align: center; }
-        .photo-preview { max-width: 100%; margin-top: 10px; border-radius: 8px; }
-        .btn-camera { background: var(--primary-blue); color: white; border: none; padding: 8px 20px; border-radius: 20px; font-weight: bold; cursor: pointer; }
-
-        /* --- 鍵盤與按鈕 --- */
-        .keypad-container {
+        /* --- 鍵盤 (懸浮底部) --- */
+        .keypad-container { 
             position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
-            width: 100%; max-width: var(--app-max-width);
-            background: white; padding: 8px; padding-bottom: calc(8px + var(--safe-top));
-            box-shadow: 0 -4px 15px rgba(0,0,0,0.15);
-            z-index: 100; display: flex; flex-direction: column; gap: 5px;
-            height: 260px; transition: transform 0.3s ease;
+            width: 100%; max-width: 600px;
+            background: white; padding: 8px; padding-bottom: calc(8px + var(--safe-bottom));
+            box-shadow: 0 -4px 15px rgba(0,0,0,0.15); 
+            z-index: 100; display: flex; flex-direction: column; gap: 5px; 
+            height: 260px; transition: transform 0.3s ease; 
         }
         .keypad-container.hidden-keypad { transform: translate(-50%, 110%); }
         .key-row { display: flex; gap: 4px; height: 100%; max-height: 55px; }
         .key-btn { flex: 1; border: none; border-radius: 6px; font-size: 1.2rem; font-weight: bold; cursor: pointer; box-shadow: 0 2px 0 rgba(0,0,0,0.2); }
-        .k-y { background: var(--target-yellow); } .k-r { background: var(--target-red); color: white; }
-        .k-b { background: var(--target-blue); color: white; } .k-bk { background: var(--target-black); color: white; }
-        .k-w { background: white; border: 1px solid #ccc; } .k-del { background: #ffcdd2; color: #d32f2f; flex: 1.5; }
-        .k-nav { background: var(--primary-pink); color: white; font-size: 1rem; }
+        .k-y { background: var(--target-yellow); } .k-r { background: var(--target-red); color: white; } .k-b { background: var(--target-blue); color: white; } .k-bk { background: var(--target-black); color: white; } .k-w { background: white; border: 1px solid #ccc; } .k-del { background: #ffcdd2; color: #d32f2f; flex: 1.5; } .k-nav { background: var(--primary-pink); color: white; font-size: 1rem; }
 
-        .btn-back-to-top {
-            position: fixed; bottom: 280px; right: 20px;
-            width: 45px; height: 45px; border-radius: 50%;
-            background: rgba(255, 203, 219, 0.95); color: white; border: 2px solid white;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.2); font-size: 1.5rem;
-            display: flex; align-items: center; justify-content: center;
-            cursor: pointer; z-index: 150; opacity: 0; pointer-events: none; transition: opacity 0.3s;
+        /* --- 其他 --- */
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-top: 10px; }
+        .cal-day { aspect-ratio: 0.9; background: white; border: 1px solid #eee; border-radius: 8px; padding: 2px; position: relative; cursor: pointer; }
+        .cal-day.today { border: 2px solid var(--primary-blue); background: #f0f8ff; }
+        .stamp-mark { position: absolute; bottom: 2px; right: 2px; font-size: 18px; }
+        .cal-scores { font-size: 0.6rem; color: #666; }
+
+        .pdf-area { background: white; padding: 10px; border-radius: 10px; border: 1px solid #eee; }
+        .photo-section { margin-top: 15px; padding: 10px; border: 2px dashed #ccc; border-radius: 10px; text-align: center; }
+        .photo-preview { max-width: 100%; margin-top: 10px; border-radius: 8px; }
+        .summary-row { display: flex; justify-content: flex-end; align-items: center; gap: 10px; margin: 10px 0; }
+        .stats-box { background: #e3f2fd; color: #1565c0; padding: 10px; border-radius: 10px; font-weight: bold; }
+        .total-display { background: var(--primary-pink); color: white; padding: 10px; border-radius: 10px; font-weight: bold; font-size: 1.3rem; }
+        .comment-box { width: 100%; min-height: 80px; padding: 10px; border: 1px solid #ccc; border-radius: 8px; margin-top: 5px; }
+
+        /* 簽名區樣式 */
+        .signature-area {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
         }
-        .btn-back-to-top.visible { opacity: 1; pointer-events: auto; }
-        @media (min-width: 600px) { .btn-back-to-top { left: 50%; margin-left: 240px; right: auto; } }
-
-        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 200; display: flex; align-items: center; justify-content: center; }
-        .modal-box { background: white; padding: 25px; border-radius: 20px; text-align: center; width: 85%; max-width: 350px; }
-        .emoji-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; max-height: 300px; overflow-y: auto; padding: 10px; }
-        .emoji-btn { font-size: 2rem; cursor: pointer; padding: 5px; background: #f9f9f9; border-radius: 5px; }
+        .sig-box {
+            flex: 1;
+            border: 1px dashed #ccc;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            background: #fcfcfc;
+            min-height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
 
         .loading-overlay { position: absolute; top:0; left:0; width:100%; height:100%; background: rgba(255,255,255,0.8); z-index: 999; display: flex; align-items: center; justify-content: center; flex-direction: column; font-weight: bold; color: var(--text-color); }
         .spinner { border: 4px solid #f3f3f3; border-top: 4px solid var(--primary-pink); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin-bottom: 10px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 200; display: flex; align-items: center; justify-content: center; }
+        .modal-box { background: white; padding: 25px; border-radius: 20px; text-align: center; width: 85%; max-width: 350px; }
+        .emoji-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; max-height: 300px; overflow-y: auto; padding: 10px; }
+        .emoji-btn { font-size: 2rem; cursor: pointer; padding: 5px; background: #f9f9f9; border-radius: 5px; }
+        
+        /* 回頂按鈕 */
+        .btn-back-to-top {
+            position: fixed; bottom: 280px; left: 50%; margin-left: 240px;
+            width: 45px; height: 45px; border-radius: 50%;
+            background: rgba(255, 203, 219, 0.95); color: white; border: 2px solid white; 
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2); font-size: 1.5rem; display: flex; align-items: center; justify-content: center;
+            cursor: pointer; z-index: 150; opacity: 0; pointer-events: none; transition: opacity 0.3s;
+        }
+        @media (max-width: 600px) { .btn-back-to-top { left: auto; right: 20px; margin-left: 0; } }
+        .btn-back-to-top.visible { opacity: 1; pointer-events: auto; }
     </style>
 </head>
 <body>
@@ -281,23 +230,24 @@
 
     <div id="view-home">
         <div class="header"><h1>🏹 Yoyo 射箭 (Cloud)</h1></div>
-        <div class="scroll-content" style="text-align: center; padding-top: 30px;">
-            <div class="mascot-area">🐻 🎯 🐰</div>
-            <p style="color:#888; font-weight:bold; color:var(--stamp-red);">請輸入名字及頭像（需每次都相同）</p>
-            <div class="login-area">
-                <div id="current-avatar-btn" class="avatar-circle" onclick="openEmojiSelector()">🐻</div>
-                <input type="text" id="archer-name-input" class="login-input" placeholder="請輸入名字">
-                <button class="home-btn btn-pink" onclick="loginArcher()">我是射手 (登入)</button>
-                <button class="home-btn btn-blue" onclick="openLogin()">我是教練 (管理)</button>
+        <div class="scroll-content">
+            <div class="login-view-content">
+                <div class="mascot-area">🐻 🎯 🐰</div>
+                <h2 style="margin-bottom: 5px;">歡迎回來！</h2>
+                <p style="color:#888; font-weight:bold; color:var(--stamp-red);">請輸入名字及頭像（需每次都相同）</p>
+                <div class="login-area">
+                    <div id="current-avatar-btn" class="avatar-circle" onclick="openEmojiSelector()">🐻</div>
+                    <input type="text" id="archer-name-input" class="login-input" placeholder="請輸入名字">
+                    <button class="home-btn btn-pink" onclick="loginArcher()">我是射手 (登入)</button>
+                    <button class="home-btn btn-blue" onclick="openLogin()">我是教練 (管理)</button>
+                </div>
             </div>
         </div>
     </div>
 
     <div id="view-coach-dashboard" class="hidden">
         <div class="header">
-            <button class="btn-header" onclick="navTo('view-home')">登出</button>
-            <h1>學生名單</h1>
-            <button class="btn-header" onclick="loadAllArchers()">🔄</button>
+            <button class="btn-header" onclick="navTo('view-home')">登出</button><h1>學生名單</h1><button class="btn-header" onclick="loadAllArchers()">🔄</button>
         </div>
         <div class="scroll-content">
             <div id="student-list-container" class="student-list"></div>
@@ -306,25 +256,21 @@
 
     <div id="view-student-history" class="hidden">
         <div class="header">
-            <button class="btn-header" onclick="handleHistoryBack()">返回</button>
-            <h1>成績總覽</h1>
-            <div style="width: 50px;"></div>
+            <button class="btn-header" onclick="handleHistoryBack()">返回</button><h1>成績總覽</h1><div style="width: 50px;"></div>
         </div>
         <div class="scroll-content">
             <h3 id="history-archer-name" style="text-align: center;"></h3>
             <div id="history-list-container"></div>
-            <button class="home-btn btn-blue" style="margin-top:20px;" onclick="navTo('view-calendar')">📅 行事曆 / 新紀錄</button>
+            <button class="home-btn btn-blue" onclick="navTo('view-calendar')">📅 新紀錄</button>
             <div style="margin-top:20px; text-align:center;">
-                 <button class="btn-danger" style="background:#c62828; color:white; border:none; padding:10px; border-radius:10px;" onclick="clearAllRecords()">⚠️ 清空紀錄</button>
+                <button class="btn-danger" style="background:#c62828; color:white; border:none; padding:10px; border-radius:10px;" onclick="clearAllRecords()">⚠️ 清空紀錄</button>
             </div>
         </div>
     </div>
 
     <div id="view-calendar" class="hidden">
         <div class="header">
-            <button class="btn-header" onclick="handleCalendarBack()">返回</button>
-            <h1>行事曆</h1>
-            <div style="width: 50px;"></div>
+            <button class="btn-header" onclick="handleCalendarBack()">返回</button><h1>行事曆</h1><div style="width: 50px;"></div>
         </div>
         <div class="scroll-content">
             <div style="display:flex; justify-content:space-between; padding: 10px;">
@@ -345,64 +291,68 @@
         <div class="top-toolbar">
             <select id="round-selector" class="round-selector" onchange="switchRound()"></select>
             <span id="save-status" class="save-status"></span>
-            <button class="btn-tool" onclick="exportPDF()">📄 PDF</button>
-            <button class="btn-tool" onclick="toggleKeypad()">鍵盤</button>
+            <button class="btn-tool" onclick="exportPDF()">📄</button>
+            <button class="btn-tool" onclick="toggleKeypad()">⌨️</button>
         </div>
         
+        <div class="tab-bar">
+            <button class="tab-btn active" id="tab-btn-score" onclick="switchTab('score')">📊 計分</button>
+            <button class="tab-btn" id="tab-btn-summary" onclick="switchTab('summary')">📝 總覽</button>
+        </div>
         <div class="scroll-content">
             <div id="pdf-export-area" class="pdf-area">
-                <div class="controls-info" style="display:flex; justify-content:space-between; margin-bottom:5px;">
-                    <span id="date-label" style="font-weight:bold;"></span>
-                    <span id="pdf-archer-name" style="color:#555;"></span>
-                </div>
-                <div class="controls-info" style="margin-top:5px; border-bottom: 2px dashed #eee; padding-bottom:5px;">
-                     <div style="display:flex; gap:5px; align-items:center;">
-                         <select id="bow-selector" onchange="triggerAutoSave()" style="padding:4px; border-radius:5px; border:1px solid #ccc; font-size:0.9rem;">
-                            <option value="recurve">反曲弓</option>
-                            <option value="compound">複合弓</option>
-                         </select>
-                         <select id="mode-select" onchange="initScoreTable()" style="padding:4px; border-radius:5px; border:1px solid #ccc; font-size:0.9rem;">
-                            <option value="outdoor">室外 (36箭)</option>
-                            <option value="indoor">室內 (30箭)</option>
-                        </select>
-                     </div>
-                     <span id="round-label-display" style="color:var(--stamp-red); font-weight:bold;">Round 1</span>
-                </div>
-
-                <table class="score-table">
-                    <thead><tr id="table-head-row"></tr></thead>
-                    <tbody id="table-body"></tbody>
-                </table>
-
-                <div class="summary-row">
-                    <div class="stats-box" id="stats-display">10+X: 0 | X: 0</div>
-                    <div class="total-display">總分: <span id="grand-total">0</span></div>
-                </div>
-
-                <div class="signature-area">
-                    <div class="sig-box" onclick="handleSign('archer')">
-                        <div id="sig-archer" class="sig-placeholder">射手簽到</div>
-                        <small>(點擊)</small>
-                    </div>
-                    <div class="sig-box" onclick="handleSign('coach')">
-                        <div id="sig-coach" class="sig-placeholder">教練簽署</div>
-                        <small>(需登入)</small>
-                    </div>
-                </div>
                 
-                <div style="margin-top:15px;">
-                    <label>📋 評語：</label>
-                    <textarea id="coach-comment" class="comment-box" placeholder="請輸入..."></textarea>
+                <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                    <span id="date-label" style="font-weight:bold;"></span>
+                    <span id="pdf-archer-name"></span>
                 </div>
 
-                <div class="photo-section">
-                    <button class="btn-camera" onclick="document.getElementById('target-photo-input').click()">📷 拍攝/上傳靶面</button>
-                    <input type="file" id="target-photo-input" accept="image/*" style="display:none;" onchange="handlePhotoUpload(event)">
-                    <div id="photo-preview-container" style="display:none; margin-top:10px;">
-                        <img id="photo-preview" class="photo-preview" src="">
-                        <button onclick="deletePhoto()" style="color:red; margin-top:5px;">刪除照片</button>
+                <div id="tab-content-score" class="tab-content">
+                    
+                    <div style="margin-bottom:10px; text-align:center;">
+                        <span id="round-label-display" style="color:red; font-weight:bold;"></span>
+                    </div>
+
+                    <table class="score-table"><thead><tr id="table-head-row"></tr></thead><tbody id="table-body"></tbody></table>
+
+                    <div class="summary-row">
+                        <div class="stats-box" id="stats-display">10+X: 0 | X: 0</div>
+                        <div class="total-display">總分: <span id="grand-total">0</span></div>
                     </div>
                 </div>
+
+                <div id="tab-content-summary" class="tab-content hidden-tab">
+                    
+                    <div style="margin-bottom:15px;">
+                        <label style="font-weight: bold;">🏹 弓種與賽制：</label>
+                        <select id="bow-selector" onchange="triggerAutoSave()">
+                            <option value="recurve">反曲弓</option><option value="compound">複合弓</option>
+                        </select>
+                        <select id="mode-select" onchange="initScoreTable()">
+                            <option value="outdoor">室外 (36箭)</option><option value="indoor">室內 (30箭)</option>
+                        </select>
+                    </div>
+
+                    <div class="signature-area">
+                        <div class="sig-box" onclick="handleSign('archer')"><div id="sig-archer" class="sig-placeholder">射手簽到</div></div>
+                        <div class="sig-box" onclick="handleSign('coach')"><div id="sig-coach" class="sig-placeholder">教練簽署</div></div>
+                    </div>
+                    
+                    <div style="margin-top:15px;">
+                        <label style="font-weight: bold;">📋 評語：</label>
+                        <textarea id="coach-comment" class="comment-box" placeholder="請輸入..."></textarea>
+                    </div>
+
+                    <div class="photo-section">
+                        <button class="btn-camera" onclick="document.getElementById('target-photo-input').click()">📷 拍攝/上傳靶紙</button>
+                        <input type="file" id="target-photo-input" accept="image/*" style="display:none;" onchange="handlePhotoUpload(event)">
+                        <div id="photo-preview-container" style="display:none; margin-top:10px;">
+                            <img id="photo-preview" class="photo-preview" src="">
+                            <button onclick="deletePhoto()" style="color:red;">刪除照片</button>
+                        </div>
+                    </div>
+                </div>
+
                 <div style="text-align:center; margin-top:20px; color:#ccc; font-size:0.7rem;">Generated by Yoyo Archery App</div>
             </div>
         </div>
@@ -423,14 +373,15 @@
 <script>
     // --- 1. FIREBASE CONFIG ---
     const firebaseConfig = {
-        apiKey: "AIzaSyBfy1pe_3WIigOpZXXI3kASKqhxEsHWGO8",
-        authDomain: "yoyo-archery-app.firebaseapp.com",
-        projectId: "yoyo-archery-app",
-        storageBucket: "yoyo-archery-app.firebasestorage.app",
-        messagingSenderId: "540788690338",
-        appId: "1:540788690338:web:6bed490f095102a8baf6fb",
-        measurementId: "G-99R8BXR4L2"
+      apiKey: "AIzaSyBfy1pe_3WIigOpZXXI3kASKqhxEsHWGO8",
+      authDomain: "yoyo-archery-app.firebaseapp.com",
+      projectId: "yoyo-archery-app",
+      storageBucket: "yoyo-archery-app.firebasestorage.app",
+      messagingSenderId: "540788690338",
+      appId: "1:540788690338:web:6bed490f095102a8baf6fb",
+      measurementId: "G-99R8BXR4L2"
     };
+    
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
@@ -441,57 +392,28 @@
     let currentRoundData={}, currentRoundIdx=0, localCacheData={};
     let lastView = 'view-home'; let autoSaveTimer = null; 
 
-    function setupScrollListener() { const els = document.querySelectorAll('.scroll-content'); const btn = document.getElementById('back-to-top'); els.forEach(el => { el.onscroll = function() { if (!el.parentElement.classList.contains('hidden') && el.scrollTop > 300) btn.classList.add('visible'); else btn.classList.remove('visible'); }; }); }
+    // V35 捲動邏輯
+    function setupScrollListener() { 
+        const els = document.querySelectorAll('.scroll-content'); 
+        const btn = document.getElementById('back-to-top'); 
+        els.forEach(el => { 
+            el.onscroll = function() { 
+                if (!el.parentElement.classList.contains('hidden') && el.scrollTop > 300) btn.classList.add('visible'); 
+                else btn.classList.remove('visible'); 
+            }; 
+        }); 
+    }
     function scrollToTop() { const v = document.querySelector('.app-container > div:not(.hidden) .scroll-content'); if(v) v.scrollTo({ top: 0, behavior: 'smooth' }); }
     setupScrollListener();
 
-    function showLoading(show, msg="連線中...") { 
-        const el=document.getElementById('loading'); 
-        document.getElementById('loading-text').innerText = msg;
-        if(show) el.classList.remove('hidden'); else el.classList.add('hidden'); 
-    }
-    function loadCloudData(name, cb) {
-        showLoading(true, `讀取 ${name}...`);
-        db.collection("records").doc(name).get().then((doc) => {
-            if (doc.exists) { const d=doc.data(); localCacheData = d.appData ? JSON.parse(d.appData) : {}; } 
-            else { localCacheData = {}; }
-            showLoading(false); if(cb) cb();
-        }).catch(e => { showLoading(false); alert("讀取失敗: " + e.message); });
-    }
-    function saveToCloud(cb, isSilent=false) {
-        if(!currentArcherName) return;
-        if(!isSilent) showLoading(true, "儲存中...");
-        else document.getElementById('save-status').innerText = "⏳...";
-        
-        db.collection("records").doc(currentArcherName).set({
-            avatar: currentArcherAvatar,
-            appData: JSON.stringify(localCacheData),
-            lastUpdate: firebase.firestore.FieldValue.serverTimestamp()
-        }).then(() => {
-            if(!isSilent) showLoading(false);
-            if(isSilent) {
-                const t = new Date().toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
-                document.getElementById('save-status').innerText = "✅ " + t;
-            }
-            if(cb) cb();
-        }).catch(e => {
-            if(!isSilent) { showLoading(false); alert("儲存失敗"); }
-            else document.getElementById('save-status').innerText = "❌";
-        });
-    }
-    function triggerAutoSave() {
-        document.getElementById('save-status').innerText = "📝...";
-        clearTimeout(autoSaveTimer);
-        autoSaveTimer = setTimeout(() => saveCurrentRound(true), 1000);
-    }
+    function showLoading(show, text="連線中...") { const el = document.getElementById('loading'); document.getElementById('loading-text').innerText = text; if(show) el.classList.remove('hidden'); else el.classList.add('hidden'); }
+    function loadCloudData(name, cb) { showLoading(true, `讀取 ${name}...`); db.collection("records").doc(name).get().then((doc) => { if (doc.exists) { const d = doc.data(); localCacheData = d.appData ? JSON.parse(d.appData) : {}; } else { localCacheData = {}; } showLoading(false); if(cb) cb(); }).catch((e) => { showLoading(false); alert("讀取失敗"); }); }
+    function saveToCloud(cb, isSilent=false) { if(!currentArcherName) return; if (!isSilent) showLoading(true, "儲存中..."); else document.getElementById('save-status').innerText = "⏳..."; db.collection("records").doc(currentArcherName).set({ avatar: currentArcherAvatar, appData: JSON.stringify(localCacheData), lastUpdate: firebase.firestore.FieldValue.serverTimestamp() }).then(() => { if (!isSilent) showLoading(false); if (isSilent) { const t = new Date().toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit', second:'2-digit' }); document.getElementById('save-status').innerText = "✅ " + t; } if(cb) cb(); }).catch((e) => { if (!isSilent) { showLoading(false); alert("儲存失敗"); } else document.getElementById('save-status').innerText = "❌"; }); }
+    function triggerAutoSave() { document.getElementById('save-status').innerText = "📝..."; clearTimeout(autoSaveTimer); autoSaveTimer = setTimeout(() => { saveCurrentRound(true); }, 1000); }
 
     // --- UI ---
     const avatars = ['🐻','🐰','🐱','🐶','🦁','🐯','🐼','🐨','🐷','🐸','🏹','🎯'];
-    function openEmojiSelector() { 
-        const g=document.getElementById('emoji-grid'); g.innerHTML="";
-        avatars.forEach(e => { const b=document.createElement('div'); b.className='emoji-btn'; b.innerText=e; b.onclick=()=>selectAvatar(e); g.appendChild(b); });
-        document.getElementById('emoji-modal').classList.remove('hidden');
-    }
+    function openEmojiSelector() { const g=document.getElementById('emoji-grid'); g.innerHTML=""; avatars.forEach(e => { const b=document.createElement('div'); b.className='emoji-btn'; b.innerText=e; b.onclick=()=>selectAvatar(e); g.appendChild(b); }); document.getElementById('emoji-modal').classList.remove('hidden'); }
     function closeEmojiSelector() { document.getElementById('emoji-modal').classList.add('hidden'); }
     function selectAvatar(e) { currentArcherAvatar=e; document.getElementById('current-avatar-btn').innerText=e; closeEmojiSelector(); }
 
@@ -500,48 +422,57 @@
         document.querySelectorAll('.app-container > div').forEach(d => { if(!d.classList.contains('loading-overlay') && d.id!=='back-to-top') d.classList.add('hidden'); });
         document.getElementById(id).classList.remove('hidden');
         if(id==='view-calendar') renderCalendar();
-        if(id==='view-score') document.getElementById('keypad').classList.remove('hidden-keypad');
+        
+        // 注意：在 openScore 中會處理鍵盤顯示
+        if(id!=='view-score') document.getElementById('keypad').classList.add('hidden-keypad');
         
         const color = currentRole === 'coach' ? 'var(--primary-blue)' : 'var(--primary-pink)';
         document.querySelectorAll('.header').forEach(h => h.style.background = color);
         document.getElementById('back-to-top').classList.remove('visible');
     }
 
-    function loginArcher() {
-        const n = document.getElementById('archer-name-input').value.trim();
-        if(!n) return alert("請輸入名字");
-        currentArcherName = n;
-        updateLabels();
-        loadCloudData(n, () => { renderHistory(n, currentArcherAvatar); navTo('view-student-history', 'archer'); });
+    // 新增：分頁切換邏輯
+    function switchTab(tabName) {
+        // 隱藏所有分頁內容
+        document.getElementById('tab-content-score').classList.add('hidden-tab');
+        document.getElementById('tab-content-summary').classList.add('hidden-tab');
+        
+        // 移除所有分頁按鈕的 active 狀態
+        document.getElementById('tab-btn-score').classList.remove('active');
+        document.getElementById('tab-btn-summary').classList.remove('active');
+
+        // 顯示目標分頁內容
+        document.getElementById(`tab-content-${tabName}`).classList.remove('hidden-tab');
+        
+        // 設置目標分頁按鈕為 active
+        document.getElementById(`tab-btn-${tabName}`).classList.add('active');
+
+        // 切換鍵盤顯示：只有在 'score' 分頁才顯示鍵盤
+        const keypad = document.getElementById('keypad');
+        if (tabName === 'score') {
+            keypad.classList.remove('hidden-keypad');
+            // 切換到計分頁時，如果 scroll-content 存在，則自動捲動到表格頂部
+            const scrollContent = document.querySelector('#view-score .scroll-content');
+            if (scrollContent) scrollContent.scrollTo({ top: 0, behavior: 'smooth' });
+        } else {
+            keypad.classList.add('hidden-keypad');
+        }
     }
 
-    function openLogin() { document.getElementById('login-modal').classList.remove('hidden'); }
-    function closeLogin() { document.getElementById('login-modal').classList.add('hidden'); }
-    function checkLogin() {
-        if(document.getElementById('coach-pwd').value === '7201440') {
-            closeLogin(); navTo('view-coach-dashboard', 'coach'); loadAllArchers();
-        } else alert("密碼錯誤");
-    }
-    
-    function loadAllArchers() {
-        showLoading(true);
-        db.collection("records").get().then(snap => {
-            const c = document.getElementById('student-list-container'); c.innerHTML="";
-            snap.forEach(doc => {
-                const n = doc.id; const d = doc.data(); const a = d.avatar || '🐻';
-                const div = document.createElement('div'); div.className='student-card';
-                div.innerHTML = `<span class="student-icon">${a}</span><div class="student-name">${n}</div>`;
-                div.onclick = () => { currentArcherName=n; currentArcherAvatar=a; updateLabels(); loadCloudData(n, () => { renderHistory(n, a); navTo('view-student-history', 'coach'); }); };
-                c.appendChild(div);
-            });
-            showLoading(false);
-        }).catch(e => { showLoading(false); alert("讀取名單失敗: " + e.message); });
-    }
 
+    function loginArcher() { const n = document.getElementById('archer-name-input').value.trim(); if(!n) return alert("請輸入名字"); currentArcherName = n; updateLabels(); loadCloudData(n, () => { renderHistory(n, currentArcherAvatar); navTo('view-student-history', 'archer'); }); }
     function updateLabels() { document.getElementById('pdf-archer-name').innerText = `射手: ${currentArcherAvatar} ${currentArcherName}`; }
     function handleHistoryBack() { navTo(currentRole==='coach' ? 'view-coach-dashboard' : 'view-home'); }
     function handleCalendarBack() { navTo('view-student-history'); }
-    function goBackFromScore() { navTo('view-calendar'); }
+    
+    function goBackFromScore() { 
+        document.getElementById('keypad').classList.add('hidden-keypad'); // 確保鍵盤隱藏
+        navTo('view-calendar'); 
+    }
+
+    function openLogin() { document.getElementById('login-modal').classList.remove('hidden'); } function closeLogin() { document.getElementById('login-modal').classList.add('hidden'); } function checkLogin() { if(document.getElementById('coach-pwd').value === '7201440') { closeLogin(); navTo('view-coach-dashboard', 'coach'); loadAllArchers(); } else { alert("密碼錯誤"); } }
+    
+    function loadAllArchers() { showLoading(true); db.collection("records").get().then(snap => { const c = document.getElementById('student-list-container'); c.innerHTML=""; snap.forEach(doc => { const n = doc.id; const d = doc.data(); const a = d.avatar || '🐻'; const div = document.createElement('div'); div.className='student-card'; div.innerHTML = `<span class="student-icon">${a}</span><div class="student-name">${n}</div>`; div.onclick = () => { currentArcherName=n; currentArcherAvatar=a; updateLabels(); loadCloudData(n, () => { renderHistory(n, a); navTo('view-student-history', 'coach'); }); }; c.appendChild(div); }); showLoading(false); }).catch(e => { showLoading(false); alert("錯誤"); }); }
 
     function renderHistory(n, a) {
         document.getElementById('history-archer-name').innerText = `${a} ${n} 的紀錄`;
@@ -558,7 +489,7 @@
             const modeT = r.mode==='indoor'?'室內':'室外'; const bowT = r.bowType==='compound'?'複合弓':'反曲弓';
             let comm = r.comment ? `<div class="h-comment">💬 ${r.comment}</div>` : '';
             const div = document.createElement('div'); div.className='history-card';
-            div.innerHTML = `<div class="history-header" onclick="openScore('${item.date}', ${item.idx})"><div class="history-info"><div class="h-date">${item.date} • R${item.idx+1} (${bowT})</div><div class="h-title">${modeT} (${arrowCnt}箭)</div><div class="h-stats"><span class="stat-badge">總分:${tot}</span><span class="stat-badge stat-avg">均:${avg}</span>${r.coachSigned?' <span class="stat-badge" style="color:red">💮已簽</span>':''}</div></div><button class="btn-delete-record" onclick="deleteRound('${item.date}', ${item.idx}, event)">🗑️</button></div>${comm}`;
+            div.innerHTML = `<div class="history-info" onclick="openScore('${item.date}', ${item.idx})"><div><div class="h-date">${item.date} • R${item.idx+1} (${bowT})</div><div class="h-title">${modeT} (${arrowCnt}箭)</div><div class="h-stats"><span class="stat-badge">總分:${tot}</span><span class="stat-badge stat-avg">均:${avg}</span>${r.coachSigned?' <span class="stat-badge" style="color:red">💮</span>':''}</div></div><div style="font-size:1.5rem;color:#ccc">›</div></div><div style="display:flex; justify-content:flex-end; margin-top:5px;"><button class="btn-delete-record" onclick="deleteRound('${item.date}', ${item.idx}, event)">🗑️</button></div>${comm}`;
             c.appendChild(div);
         });
     }
@@ -574,14 +505,19 @@
         if(dd.rounds.length === 0) createNewRound(dd);
         currentRoundIdx = (idx!==null) ? idx : dd.rounds.length-1; localCacheData[dateStr] = dd;
         renderRoundSelector(dd); loadRound(dd.rounds[currentRoundIdx]);
-        document.getElementById('coach-comment').readOnly = (currentRole==='archer');
-        navTo('view-score');
+        
+        // 預設切換到 'score' 分頁，並顯示鍵盤
+        switchTab('score'); 
+        
+        document.getElementById('coach-comment').readOnly = (currentRole==='archer'); navTo('view-score');
     }
     function createNewRound(dd) { dd.rounds.push({mode:'outdoor', bowType:'recurve', scores:null, total:0, comment:'', archerSigned:false, coachSigned:false, targetPhoto:null}); return dd.rounds.length-1; }
     function renderRoundSelector(dd) { const s = document.getElementById('round-selector'); s.innerHTML=""; dd.rounds.forEach((r, i) => { const o=document.createElement('option'); o.value=i; o.text=`R${i+1} (${r.total})`; s.appendChild(o); }); const add = document.createElement('option'); add.value="new"; add.text="➕"; s.appendChild(add); s.value = currentRoundIdx; }
     function switchRound() { const v = document.getElementById('round-selector').value; saveCurrentRound(true); let dd = localCacheData[selectedDate]; if(v==='new') { if(confirm("新一輪?")) { currentRoundIdx=createNewRound(dd); renderRoundSelector(dd); loadRound(dd.rounds[currentRoundIdx]); } else document.getElementById('round-selector').value = currentRoundIdx; } else { currentRoundIdx = parseInt(v); loadRound(dd.rounds[currentRoundIdx]); } }
+    
     function loadRound(r) {
         currentRoundData = r;
+        // 選擇器已移到 summary tab，此處僅讀取值
         document.getElementById('mode-select').value = r.mode || 'outdoor'; document.getElementById('bow-selector').value = r.bowType || 'recurve';
         document.getElementById('coach-comment').value = r.comment || ''; document.getElementById('round-label-display').innerText = `Round ${currentRoundIdx+1}`;
         const prev = document.getElementById('photo-preview'); const cont = document.getElementById('photo-preview-container');
@@ -593,76 +529,315 @@
     function initScoreTable(reset) {
         const mode = document.getElementById('mode-select').value; const rows = (mode==='outdoor')?6:10; const arrows = (mode==='outdoor')?6:3;
         if(reset || !currentRoundData.scores) scores = Array(rows).fill().map(()=>Array(arrows).fill(null)); else scores = currentRoundData.scores;
-        const thead = document.getElementById('table-head-row'); let h = '<th width="15%">趟</th>'; for(let i=1; i<=arrows; i++) h+=`<th>${i}</th>`; h+='<th>小計</th>'; thead.innerHTML=h;
-        const tbody = document.getElementById('table-body'); tbody.innerHTML="";
-        for(let r=0; r<rows; r++) { const tr = document.createElement('tr'); tr.innerHTML = `<td style="background:#f0f8ff;font-weight:bold;">${r+1}</td>`; for(let c=0; c<arrows; c++) tr.innerHTML+=`<td><div id="cell-${r}-${c}" class="score-cell" onclick="setFocus(${r},${c})"></div></td>`; tr.innerHTML+=`<td id="sub-${r}" style="font-weight:bold;color:#555;">0</td>`; tbody.appendChild(tr); }
-        refreshTableUI(); setFocus(0,0);
-    }
-    function refreshTableUI() {
-        let grand=0; let c10=0, cX=0, c9=0; const mode = document.getElementById('mode-select').value;
-        scores.forEach((row, r) => {
-            let sub=0; row.forEach((v, c) => {
-                const cell = document.getElementById(`cell-${r}-${c}`); if(cell) { cell.innerText = v===null?'':v; applyColor(cell, v); }
-                let val=0; if(v==='X') { val=10; cX++; } else if(v==='M') val=0; else if(v!==null) { val=parseInt(v); if(val===10) c10++; if(val===9) c9++; } sub += val;
-            }); document.getElementById(`sub-${r}`).innerText = sub; grand += sub;
-        });
-        document.getElementById('grand-total').innerText = grand;
-        const sbox = document.getElementById('stats-display');
-        if(mode==='outdoor') sbox.innerHTML = `10+X: ${c10+cX} | X: ${cX}`; else sbox.innerHTML = `10: ${c10+cX} | 9: ${c9}`;
-    }
-    function applyColor(el,v) { el.className="score-cell active"; if(v==='X'||v==10||v==9)el.classList.add('bg-yellow'); else if(v==8||v==7)el.classList.add('bg-red'); else if(v==6||v==5)el.classList.add('bg-blue'); else if(v==4||v==3)el.classList.add('bg-black'); else el.classList.add('bg-white'); }
+        currentRoundData.mode = mode; // 更新模式
+        
+        const thead = document.getElementById('table-head-row'); let h = '<th width="15%">趟</th>'; for(let i=1; i<=arrows; i++) h += `<th>${i}</th>`; h += '<th>計</th><th>總計</th>'; thead.innerHTML = h;
 
-    function setFocus(r,c) { const old = document.querySelector('.score-cell.active'); if(old) old.classList.remove('active'); currentFocus={r,c}; document.getElementById(`cell-${r}-${c}`).classList.add('active'); document.getElementById('keypad').classList.remove('hidden-keypad'); }
-    function moveFocus(s) { const rows=scores.length; const cols=scores[0].length; let {r,c} = currentFocus; c+=s; if(c>=cols) { c=0; r++; } if(c<0) { c=cols-1; r--; } if(r>=0 && r<rows) setFocus(r,c); }
-    function inputScore(v) { if(scores[currentFocus.r]) { scores[currentFocus.r][currentFocus.c]=v; refreshTableUI(); moveFocus(1); triggerAutoSave(); } }
-    function deleteScore() { scores[currentFocus.r][currentFocus.c]=null; refreshTableUI(); triggerAutoSave(); }
-    function toggleKeypad() { document.getElementById('keypad').classList.toggle('hidden-keypad'); }
+        const tbody = document.getElementById('table-body'); tbody.innerHTML = "";
+        let cumulativeTotal = 0;
+        
+        for(let r=0; r<rows; r++) {
+            let rowTotal = 0;
+            const tr = document.createElement('tr');
+            tr.innerHTML += `<td>${r+1}</td>`; // 趟數
+            
+            // 分數欄位
+            for(let c=0; c<arrows; c++) {
+                const s = scores[r][c];
+                const scoreValue = (s==='X'||s==='10')?10:(s==='M'?0:parseInt(s)||0);
+                rowTotal += scoreValue;
+                cumulativeTotal += scoreValue;
+                
+                const td = document.createElement('td');
+                const cell = document.createElement('div');
+                cell.className = 'score-cell';
+                cell.id = `score-cell-${r}-${c}`;
+                cell.onclick = () => setFocus(r,c);
+                cell.innerText = s!==null ? s : '';
+                cell.classList.add(getScoreColor(s));
+                
+                td.appendChild(cell);
+                tr.appendChild(td);
+            }
+            
+            // 該趟總計
+            tr.innerHTML += `<td style="font-weight:bold; background:#f0f0f0;">${rowTotal}</td>`;
+            // 累計總計
+            tr.innerHTML += `<td style="font-weight:bold; background:#e0e0e0;"><span id="cum-total-${r}">${cumulativeTotal}</span></td>`;
+            tbody.appendChild(tr);
+        }
+        
+        calculateTotal();
+        // 重設焦點到第一個空位
+        setFocus(0,0, true);
+    }
+    
+    function setFocus(r, c, findFirstEmpty = false) {
+        document.querySelectorAll('.score-cell').forEach(cell => cell.classList.remove('active'));
+        const rows = scores.length;
+        const arrows = scores[0].length;
+        
+        let targetR = r;
+        let targetC = c;
 
-    function handleSign(role) {
-        if(currentRole!==role) return alert("權限不足");
-        const div = document.getElementById(`sig-${role}`);
-        const isSigned = div.innerHTML.includes('stamp-img');
-        updateSigUI(role, !isSigned);
+        if (findFirstEmpty) {
+            let found = false;
+            for (let i = 0; i < rows; i++) {
+                for (let j = 0; j < arrows; j++) {
+                    if (scores[i][j] === null || scores[i][j] === "") {
+                        targetR = i;
+                        targetC = j;
+                        found = true;
+                        break;
+                    }
+                }
+                if (found) break;
+            }
+            if (!found) { // 如果全滿，則移動到最後一格
+                targetR = rows - 1;
+                targetC = arrows - 1;
+            }
+        }
+        
+        currentFocus = {r:targetR, c:targetC};
+        const activeCell = document.getElementById(`score-cell-${targetR}-${targetC}`);
+        if(activeCell) {
+            activeCell.classList.add('active');
+            // 自動捲動到焦點
+            const container = document.querySelector('#view-score .scroll-content');
+            if(container) {
+                const cellRect = activeCell.getBoundingClientRect();
+                const containerRect = container.getBoundingClientRect();
+                if (cellRect.bottom > containerRect.bottom || cellRect.top < containerRect.top) {
+                    container.scrollTo({
+                        top: container.scrollTop + cellRect.top - containerRect.top - (containerRect.height / 3),
+                        behavior: 'smooth'
+                    });
+                }
+            }
+        }
+    }
+    
+    function getScoreColor(s) {
+        const v = (s==='X')?10:parseInt(s);
+        if(v>=9) return 'bg-yellow';
+        if(v>=7) return 'bg-red';
+        if(v>=5) return 'bg-blue';
+        if(v>=3) return 'bg-black';
+        if(v>=1) return 'bg-white';
+        return '';
+    }
+
+    function calculateTotal() {
+        let grandTotal = 0;
+        let XCount = 0;
+        let TenPlusXCount = 0;
+        const rows = scores.length;
+        const arrows = scores[0].length;
+        
+        for(let r=0; r<rows; r++) {
+            let rowTotal = 0;
+            for(let c=0; c<arrows; c++) {
+                const s = scores[r][c];
+                const scoreValue = (s==='X'||s==='10')?10:(s==='M'?0:parseInt(s)||0);
+                rowTotal += scoreValue;
+                grandTotal += scoreValue;
+                
+                if(s==='X') { XCount++; TenPlusXCount++; }
+                else if(s==='10') { TenPlusXCount++; }
+            }
+            
+            // 更新 UI 的該趟總計和累計總計
+            const cells = document.getElementById(`score-cell-${r}-0`).parentElement.parentElement.children;
+            cells[arrows+1].innerText = rowTotal;
+            cells[arrows+2].children[0].innerText = grandTotal;
+        }
+
+        document.getElementById('grand-total').innerText = grandTotal;
+        document.getElementById('stats-display').innerText = `10+X: ${TenPlusXCount} | X: ${XCount}`;
+        
+        currentRoundData.total = grandTotal;
+        currentRoundData.scores = scores;
+        
+        // 更新 Round Selector 上的總分
+        const sel = document.getElementById('round-selector');
+        sel.options[currentRoundIdx].text = `R${currentRoundIdx+1} (${grandTotal})`;
+    }
+
+    function inputScore(score) {
+        const {r,c} = currentFocus;
+        if(r >= scores.length || c >= scores[0].length) return; // 超出範圍
+        
+        scores[r][c] = score.toString();
+        const cell = document.getElementById(`score-cell-${r}-${c}`);
+        cell.innerText = scores[r][c];
+        cell.className = 'score-cell'; // 重置
+        cell.classList.add(getScoreColor(scores[r][c]));
+
+        calculateTotal();
+        moveFocus(1); // 自動移動到下一格
         triggerAutoSave();
     }
-    function updateSigUI(role, signed) {
-        const div = document.getElementById(`sig-${role}`);
-        if(signed) { div.innerHTML = `<div class="stamp-img">${role==='archer'?'已簽':'認證'}</div>`; div.style.borderBottom="none"; }
-        else { div.innerHTML = role==='archer'?'點擊簽到':'點擊簽署'; div.style.borderBottom="2px solid #ccc"; }
-    }
-
-    function saveCurrentRound(silent=false) {
-        currentRoundData.scores = scores; currentRoundData.total = document.getElementById('grand-total').innerText;
-        currentRoundData.comment = document.getElementById('coach-comment').value; currentRoundData.mode = document.getElementById('mode-select').value;
-        currentRoundData.bowType = document.getElementById('bow-selector').value;
-        currentRoundData.archerSigned = document.getElementById('sig-archer').innerHTML.includes('stamp-img');
-        currentRoundData.coachSigned = document.getElementById('sig-coach').innerHTML.includes('stamp-img');
-        if(!localCacheData[selectedDate]) localCacheData[selectedDate] = { rounds: [] };
-        localCacheData[selectedDate].rounds[currentRoundIdx] = currentRoundData; renderRoundSelector(localCacheData[selectedDate]); saveToCloud(null, silent);
-    }
-
-    function handlePhotoUpload(e) {
-        const f = e.target.files[0]; if(!f) return;
-        const r = new FileReader();
-        r.onload = function(ex) {
-            const img = new Image();
-            img.onload = function() {
-                const cvs = document.createElement('canvas'); const ctx = cvs.getContext('2d');
-                const maxW = 600; let w=img.width; let h=img.height; if(w>maxW) { h*=maxW/w; w=maxW; }
-                cvs.width=w; cvs.height=h; ctx.drawImage(img,0,0,w,h);
-                const d = cvs.toDataURL('image/jpeg', 0.6);
-                currentRoundData.targetPhoto = d; document.getElementById('photo-preview').src = d; document.getElementById('photo-preview-container').style.display = 'block'; triggerAutoSave();
-            }; img.src = ex.target.result;
-        }; r.readAsDataURL(f);
-    }
-    function deletePhoto() { if(confirm("刪除照片?")) { currentRoundData.targetPhoto=null; document.getElementById('photo-preview').src=""; document.getElementById('photo-preview-container').style.display='none'; triggerAutoSave(); } }
     
-    function exportPDF() {
-        document.getElementById('keypad').classList.add('hidden-keypad');
-        const el = document.getElementById('pdf-export-area');
-        const opt = { margin: 0.2, filename: `射箭_${selectedDate}_R${currentRoundIdx+1}.pdf`, image: {type:'jpeg',quality:0.98}, html2canvas:{scale:2}, jsPDF:{unit:'in',format:'a4'} };
-        html2pdf().set(opt).from(el).save();
+    function deleteScore() {
+        const {r,c} = currentFocus;
+        if(r < 0 || c < 0) { // 如果在第一格之前
+            setFocus(0,0);
+            return;
+        }
+
+        if(scores[r][c] !== null && scores[r][c] !== "") { // 如果當前格有值，先清空當前格
+            scores[r][c] = null;
+            const cell = document.getElementById(`score-cell-${r}-${c}`);
+            cell.innerText = '';
+            cell.className = 'score-cell';
+            setFocus(r,c);
+        } else { // 如果當前格為空，則移動到前一格清空
+            moveFocus(-1);
+            const newR = currentFocus.r;
+            const newC = currentFocus.c;
+            if(newR >= 0 && newC >= 0) {
+                scores[newR][newC] = null;
+                const cell = document.getElementById(`score-cell-${newR}-${newC}`);
+                cell.innerText = '';
+                cell.className = 'score-cell';
+            }
+        }
+        calculateTotal();
+        triggerAutoSave();
     }
+    
+    function moveFocus(dir) {
+        let {r,c} = currentFocus;
+        const rows = scores.length;
+        const arrows = scores[0].length;
+        
+        let newC = c + dir;
+        let newR = r;
+        
+        if (newC >= arrows) {
+            newC = 0;
+            newR = r + 1;
+        } else if (newC < 0) {
+            newC = arrows - 1;
+            newR = r - 1;
+        }
+        
+        if (newR < 0) newR = 0;
+        if (newR >= rows) newR = rows - 1;
+
+        setFocus(newR, newC);
+    }
+    
+    // --- 簽名和圖片邏輯 ---
+    function updateSigUI(type, signed) {
+        const el = document.getElementById(`sig-${type}`);
+        if(signed) {
+            el.innerText = `✅ ${type==='archer'?'射手':'教練'}已簽署`;
+            el.style.fontWeight = 'bold';
+            el.style.color = 'green';
+        } else {
+            el.innerText = `${type==='archer'?'射手簽到':'教練簽署'}`;
+            el.style.fontWeight = 'normal';
+            el.style.color = '#777';
+        }
+    }
+
+    function handleSign(type) {
+        if (type === 'coach' && currentRole === 'archer') return alert("只有教練可以簽署！");
+        if (type === 'archer' && currentRole === 'coach') return alert("只有射手可以簽署！");
+        
+        currentRoundData[`${type}Signed`] = !currentRoundData[`${type}Signed`];
+        updateSigUI(type, currentRoundData[`${type}Signed`]);
+        saveCurrentRound(true);
+    }
+    
+    function handlePhotoUpload(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        showLoading(true, "處理圖片中...");
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            currentRoundData.targetPhoto = e.target.result;
+            const prev = document.getElementById('photo-preview');
+            prev.src = e.target.result;
+            document.getElementById('photo-preview-container').style.display = 'block';
+            showLoading(false);
+            saveCurrentRound(true);
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function deletePhoto() {
+        if(confirm("確定刪除圖片?")) {
+            currentRoundData.targetPhoto = null;
+            document.getElementById('photo-preview-container').style.display = 'none';
+            document.getElementById('target-photo-input').value = null;
+            saveCurrentRound(true);
+        }
+    }
+    
+    // --- 儲存與 PDF ---
+    function saveCurrentRound(isSilent = false) {
+        if(!currentRoundData) return;
+        currentRoundData.scores = scores;
+        currentRoundData.total = document.getElementById('grand-total').innerText;
+        currentRoundData.comment = document.getElementById('coach-comment').value;
+        currentRoundData.mode = document.getElementById('mode-select').value;
+        currentRoundData.bowType = document.getElementById('bow-selector').value;
+        
+        localCacheData[selectedDate].rounds[currentRoundIdx] = currentRoundData;
+        
+        saveToCloud(() => {
+            renderRoundSelector(localCacheData[selectedDate]);
+            if (!isSilent) alert("儲存成功！");
+        }, isSilent);
+    }
+
+    function toggleKeypad() {
+        document.getElementById('keypad').classList.toggle('hidden-keypad');
+    }
+
+    function exportPDF() {
+        // 先儲存一次，確保數據最新
+        saveCurrentRound(true); 
+        
+        const element = document.getElementById('pdf-export-area');
+        const filename = `${currentArcherName}_${selectedDate}_R${currentRoundIdx+1}_${currentRoundData.total}.pdf`;
+        
+        html2pdf().from(element).set({
+            margin: 10,
+            filename: filename,
+            html2canvas: { scale: 2, logging: true, dpi: 192, letterRendering: true },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        }).save();
+    }
+
+    // 啟動時自動嘗試登入（用於保留狀態）
+    document.addEventListener('DOMContentLoaded', () => {
+        // 檢查是否有儲存的名字，如果沒有則停留在首頁
+        const storedName = localStorage.getItem('lastArcherName');
+        const storedAvatar = localStorage.getItem('lastArcherAvatar');
+        if (storedName) {
+            document.getElementById('archer-name-input').value = storedName;
+            currentArcherAvatar = storedAvatar || '🐻';
+            document.getElementById('current-avatar-btn').innerText = currentArcherAvatar;
+        }
+        
+        // V35: 在 DOMContentLoaded 時初始化鍵盤為隱藏，避免閃爍
+        document.getElementById('keypad').classList.add('hidden-keypad');
+    });
+
+    // 瀏覽器關閉前儲存射手狀態
+    window.addEventListener('beforeunload', () => {
+        if (currentArcherName) {
+            localStorage.setItem('lastArcherName', currentArcherName);
+            localStorage.setItem('lastArcherAvatar', currentArcherAvatar);
+        }
+    });
+
 </script>
 </body>
 </html>
